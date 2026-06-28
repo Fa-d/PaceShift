@@ -30,6 +30,17 @@ services:
       APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-com.paceshift.app}
       REVENUECAT_AUTH_TOKEN: ${REVENUECAT_AUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Generative UI (Phase 12) — GLM 5.2 via Z.ai (OpenAI-compatible). GLM_API_KEY
+      # has no default; the /ai/ui route returns 503 until it is set. compose.sh
+      # injects it from the macOS Keychain (service `zai-api-key`) at runtime.
+      GLM_API_KEY: ${GLM_API_KEY:-}
+      GLM_BASE_URL: ${GLM_BASE_URL:-https://api.z.ai/api/paas/v4}
+      GLM_MODEL: ${GLM_MODEL:-glm-5.2}
+      # GLM 4.5/5.2 are reasoning models — with reasoning ON they spend the whole
+      # token budget on hidden reasoning and return empty content (and stall long
+      # enough to trip the HTTP timeout). Keep disabled unless on a model where you
+      # explicitly want reasoning.
+      GLM_DISABLE_THINKING: ${GLM_DISABLE_THINKING:-true}
     ports:
       - "8080:8080"
 

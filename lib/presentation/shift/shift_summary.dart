@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../domain/engine/reschedule_outcome.dart';
 
 /// Builds a friendly, plain-language summary of an engine reshuffle
@@ -123,7 +124,7 @@ class DegradeDecisionSheet extends StatelessWidget {
               ),
             ),
           ),
-        ],
+        ].revealStagger(context),
       ),
     );
   }

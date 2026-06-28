@@ -26,6 +26,9 @@ abstract class AppSettings with _$AppSettings {
     /// Longer make-up window for long runs.
     @Default(10) int longRunCatchupWindowDays,
     @Default(false) bool cloudBackupEnabled,
+
+    /// Display name captured during onboarding (empty = not provided).
+    @Default('') String userName,
   }) = _AppSettings;
 
   const AppSettings._();

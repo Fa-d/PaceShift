@@ -46,4 +46,11 @@ object Config {
     val glmBaseUrl: String =
         System.getenv("GLM_BASE_URL") ?: "https://api.z.ai/api/paas/v4"
     val glmModel: String = System.getenv("GLM_MODEL") ?: "glm-5.2"
+
+    // GLM 4.5/5.2 are reasoning models. With reasoning ON they spend the whole
+    // token budget on hidden reasoning and return empty content (and are slow
+    // enough to trip the HTTP timeout). Disabled by default; set
+    // GLM_DISABLE_THINKING=false only on a model where reasoning is wanted.
+    val glmDisableThinking: Boolean =
+        System.getenv("GLM_DISABLE_THINKING")?.toBoolean() ?: true
 }

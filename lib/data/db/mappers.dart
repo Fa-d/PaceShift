@@ -108,6 +108,7 @@ extension CompletedRunRowMapper on CompletedRunRow {
         maxHr: maxHr,
         calories: calories,
         source: source,
+        activityType: activityType,
         externalId: externalId,
       );
 }
@@ -125,6 +126,7 @@ extension CompletedRunToCompanion on CompletedRun {
         maxHr: Value(maxHr),
         calories: Value(calories),
         source: Value(source),
+        activityType: Value(activityType),
         externalId: Value(externalId),
       );
 }
@@ -138,6 +140,7 @@ extension SettingsRowMapper on SettingsRow {
         catchupWindowDays: catchupWindowDays,
         longRunCatchupWindowDays: longRunCatchupWindowDays,
         cloudBackupEnabled: cloudBackupEnabled,
+        userName: userName,
       );
 }
 
@@ -151,5 +154,6 @@ extension SettingsToCompanion on AppSettings {
         catchupWindowDays: Value(catchupWindowDays),
         longRunCatchupWindowDays: Value(longRunCatchupWindowDays),
         cloudBackupEnabled: Value(cloudBackupEnabled),
+        userName: Value(userName),
       );
 }

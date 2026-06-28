@@ -45,6 +45,20 @@ enum RunSource {
   manual,
 }
 
+/// The physical activity a completed session represents.
+///
+/// Only [run] sessions count toward running volume, fitness and race
+/// prediction. Walks and hikes are stored (e.g. for a future cross-training
+/// view) but deliberately excluded from those running stats.
+enum ActivityType {
+  run,
+  walk,
+  hike;
+
+  /// Whether this activity counts as running mileage/fitness.
+  bool get isRun => this == ActivityType.run;
+}
+
 /// How aggressively the adaptive engine redistributes missed load.
 ///
 /// Tunes the catch-up windows and how willingly the engine reduces or drops

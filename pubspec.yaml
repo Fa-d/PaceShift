@@ -48,6 +48,9 @@ dependencies:
   timezone: ^0.11.0
   flutter_timezone: ^5.1.0
   fl_chart: ^1.2.0
+  flutter_animate: ^4.5.0
+  animations: ^2.0.11
+  confetti: ^0.8.0
   go_router: ^17.3.0
   intl: ^0.20.3
   permission_handler: ^12.0.3

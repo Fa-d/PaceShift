@@ -24,11 +24,18 @@ abstract class CompletedRun with _$CompletedRun {
     double? calories,
     required RunSource source,
 
+    /// What kind of activity this was. Defaults to [ActivityType.run] for
+    /// manually entered runs and pre-`activityType` rows.
+    @Default(ActivityType.run) ActivityType activityType,
+
     /// Health Connect record id, used to dedup repeated syncs.
     String? externalId,
   }) = _CompletedRun;
 
   const CompletedRun._();
+
+  /// Whether this session counts as running mileage/fitness (excludes walks/hikes).
+  bool get isRun => activityType.isRun;
 
   /// Pace formatted as `m:ss /km`, e.g. `5:42 /km`.
   String get formattedPace {

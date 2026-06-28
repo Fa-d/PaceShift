@@ -1,14 +1,19 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/date_utils.dart';
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/count_up_text.dart';
+import '../widgets/pressable.dart';
 import '../widgets/run_card.dart';
 
 enum _PlanView { week, month }
@@ -49,7 +54,12 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                     ],
                     selected: {_view},
                     showSelectedIcon: false,
-                    onSelectionChanged: (s) => setState(() => _view = s.first),
+                    onSelectionChanged: (s) {
+                      if (AppMotion.on(context)) {
+                        HapticFeedback.selectionClick();
+                      }
+                      setState(() => _view = s.first);
+                    },
                   ),
                 ],
               ),
@@ -69,9 +79,23 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       message: 'Generate a plan to see your schedule here.',
                     );
                   }
-                  return _view == _PlanView.week
-                      ? _WeekListView(runs: runs)
-                      : _MonthView(runs: runs);
+                  return PageTransitionSwitcher(
+                    duration: AppMotion.medium,
+                    transitionBuilder: (child, primary, secondary) =>
+                        SharedAxisTransition(
+                      animation: primary,
+                      secondaryAnimation: secondary,
+                      transitionType: SharedAxisTransitionType.horizontal,
+                      fillColor: Colors.transparent,
+                      child: child,
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey(_view),
+                      child: _view == _PlanView.week
+                          ? _WeekListView(runs: runs)
+                          : _MonthView(runs: runs),
+                    ),
+                  );
                 },
               ),
             ),
@@ -117,20 +141,25 @@ class _WeekListView extends ConsumerWidget {
           children: [
             SectionHeader(
               'Week $week${isCurrent ? '  • this week' : ''}',
-              trailing: Text('${volume.toStringAsFixed(0)} km',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                      color: AppTheme.ember, fontWeight: FontWeight.w700)),
+              trailing: CountUpText(
+                value: volume,
+                format: (n) => '${n.round()} km',
+                style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppTheme.ember, fontWeight: FontWeight.w700),
+              ),
             ),
             ...weekRuns.map((r) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: RunCard(
-                    run: r,
-                    onTap: () => context.push('/run/${r.id}'),
+                  child: Pressable(
+                    child: RunCard(
+                      run: r,
+                      onTap: () => context.push('/run/${r.id}'),
+                    ),
                   ),
                 )),
             const SizedBox(height: 8),
           ],
-        );
+        ).reveal(context);
       },
     );
   }
@@ -224,7 +253,10 @@ class _MonthViewState extends ConsumerState<_MonthView> {
               final date = cells[i];
               if (date == null) return const SizedBox.shrink();
               final dayRuns = byDate[date] ?? const [];
-              return _MonthDayCell(date: date, runs: dayRuns);
+              return Pressable(
+                haptic: dayRuns.any((r) => r.type.isRun),
+                child: _MonthDayCell(date: date, runs: dayRuns),
+              ).reveal(context, delay: Duration(milliseconds: 12 * i));
             },
           ),
         ),

@@ -1486,6 +1486,16 @@ class $CompletedRunsTable extends CompletedRuns
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       ).withConverter<RunSource>($CompletedRunsTable.$convertersource);
+  @override
+  late final GeneratedColumnWithTypeConverter<ActivityType, String>
+  activityType = GeneratedColumn<String>(
+    'activity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('run'),
+  ).withConverter<ActivityType>($CompletedRunsTable.$converteractivityType);
   static const VerificationMeta _externalIdMeta = const VerificationMeta(
     'externalId',
   );
@@ -1509,6 +1519,7 @@ class $CompletedRunsTable extends CompletedRuns
     maxHr,
     calories,
     source,
+    activityType,
     externalId,
   ];
   @override
@@ -1651,6 +1662,12 @@ class $CompletedRunsTable extends CompletedRuns
           data['${effectivePrefix}source'],
         )!,
       ),
+      activityType: $CompletedRunsTable.$converteractivityType.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}activity_type'],
+        )!,
+      ),
       externalId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}external_id'],
@@ -1665,6 +1682,10 @@ class $CompletedRunsTable extends CompletedRuns
 
   static JsonTypeConverter2<RunSource, String, String> $convertersource =
       const EnumNameConverter<RunSource>(RunSource.values);
+  static JsonTypeConverter2<ActivityType, String, String>
+  $converteractivityType = const EnumNameConverter<ActivityType>(
+    ActivityType.values,
+  );
 }
 
 class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
@@ -1679,6 +1700,10 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
   final double? calories;
   final RunSource source;
 
+  /// The physical activity (run/walk/hike). Only runs count toward running
+  /// stats; defaults to `run` for manual entries and pre-migration rows.
+  final ActivityType activityType;
+
   /// Health Connect record id, for dedup. Unique when present.
   final String? externalId;
   const CompletedRunRow({
@@ -1692,6 +1717,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     this.maxHr,
     this.calories,
     required this.source,
+    required this.activityType,
     this.externalId,
   });
   @override
@@ -1717,6 +1743,11 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     {
       map['source'] = Variable<String>(
         $CompletedRunsTable.$convertersource.toSql(source),
+      );
+    }
+    {
+      map['activity_type'] = Variable<String>(
+        $CompletedRunsTable.$converteractivityType.toSql(activityType),
       );
     }
     if (!nullToAbsent || externalId != null) {
@@ -1745,6 +1776,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           ? const Value.absent()
           : Value(calories),
       source: Value(source),
+      activityType: Value(activityType),
       externalId: externalId == null && nullToAbsent
           ? const Value.absent()
           : Value(externalId),
@@ -1769,6 +1801,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       source: $CompletedRunsTable.$convertersource.fromJson(
         serializer.fromJson<String>(json['source']),
       ),
+      activityType: $CompletedRunsTable.$converteractivityType.fromJson(
+        serializer.fromJson<String>(json['activityType']),
+      ),
       externalId: serializer.fromJson<String?>(json['externalId']),
     );
   }
@@ -1788,6 +1823,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       'source': serializer.toJson<String>(
         $CompletedRunsTable.$convertersource.toJson(source),
       ),
+      'activityType': serializer.toJson<String>(
+        $CompletedRunsTable.$converteractivityType.toJson(activityType),
+      ),
       'externalId': serializer.toJson<String?>(externalId),
     };
   }
@@ -1803,6 +1841,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     Value<int?> maxHr = const Value.absent(),
     Value<double?> calories = const Value.absent(),
     RunSource? source,
+    ActivityType? activityType,
     Value<String?> externalId = const Value.absent(),
   }) => CompletedRunRow(
     id: id ?? this.id,
@@ -1815,6 +1854,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     maxHr: maxHr.present ? maxHr.value : this.maxHr,
     calories: calories.present ? calories.value : this.calories,
     source: source ?? this.source,
+    activityType: activityType ?? this.activityType,
     externalId: externalId.present ? externalId.value : this.externalId,
   );
   CompletedRunRow copyWithCompanion(CompletedRunsCompanion data) {
@@ -1837,6 +1877,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       maxHr: data.maxHr.present ? data.maxHr.value : this.maxHr,
       calories: data.calories.present ? data.calories.value : this.calories,
       source: data.source.present ? data.source.value : this.source,
+      activityType: data.activityType.present
+          ? data.activityType.value
+          : this.activityType,
       externalId: data.externalId.present
           ? data.externalId.value
           : this.externalId,
@@ -1856,6 +1899,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           ..write('maxHr: $maxHr, ')
           ..write('calories: $calories, ')
           ..write('source: $source, ')
+          ..write('activityType: $activityType, ')
           ..write('externalId: $externalId')
           ..write(')'))
         .toString();
@@ -1873,6 +1917,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     maxHr,
     calories,
     source,
+    activityType,
     externalId,
   );
   @override
@@ -1889,6 +1934,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           other.maxHr == this.maxHr &&
           other.calories == this.calories &&
           other.source == this.source &&
+          other.activityType == this.activityType &&
           other.externalId == this.externalId);
 }
 
@@ -1903,6 +1949,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
   final Value<int?> maxHr;
   final Value<double?> calories;
   final Value<RunSource> source;
+  final Value<ActivityType> activityType;
   final Value<String?> externalId;
   const CompletedRunsCompanion({
     this.id = const Value.absent(),
@@ -1915,6 +1962,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     this.maxHr = const Value.absent(),
     this.calories = const Value.absent(),
     this.source = const Value.absent(),
+    this.activityType = const Value.absent(),
     this.externalId = const Value.absent(),
   });
   CompletedRunsCompanion.insert({
@@ -1928,6 +1976,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     this.maxHr = const Value.absent(),
     this.calories = const Value.absent(),
     required RunSource source,
+    this.activityType = const Value.absent(),
     this.externalId = const Value.absent(),
   }) : date = Value(date),
        actualDistanceKm = Value(actualDistanceKm),
@@ -1945,6 +1994,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     Expression<int>? maxHr,
     Expression<double>? calories,
     Expression<String>? source,
+    Expression<String>? activityType,
     Expression<String>? externalId,
   }) {
     return RawValuesInsertable({
@@ -1958,6 +2008,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
       if (maxHr != null) 'max_hr': maxHr,
       if (calories != null) 'calories': calories,
       if (source != null) 'source': source,
+      if (activityType != null) 'activity_type': activityType,
       if (externalId != null) 'external_id': externalId,
     });
   }
@@ -1973,6 +2024,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     Value<int?>? maxHr,
     Value<double?>? calories,
     Value<RunSource>? source,
+    Value<ActivityType>? activityType,
     Value<String?>? externalId,
   }) {
     return CompletedRunsCompanion(
@@ -1986,6 +2038,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
       maxHr: maxHr ?? this.maxHr,
       calories: calories ?? this.calories,
       source: source ?? this.source,
+      activityType: activityType ?? this.activityType,
       externalId: externalId ?? this.externalId,
     );
   }
@@ -2025,6 +2078,11 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
         $CompletedRunsTable.$convertersource.toSql(source.value),
       );
     }
+    if (activityType.present) {
+      map['activity_type'] = Variable<String>(
+        $CompletedRunsTable.$converteractivityType.toSql(activityType.value),
+      );
+    }
     if (externalId.present) {
       map['external_id'] = Variable<String>(externalId.value);
     }
@@ -2044,6 +2102,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
           ..write('maxHr: $maxHr, ')
           ..write('calories: $calories, ')
           ..write('source: $source, ')
+          ..write('activityType: $activityType, ')
           ..write('externalId: $externalId')
           ..write(')'))
         .toString();
@@ -2142,6 +2201,18 @@ class $SettingsRowsTable extends SettingsRows
       'CHECK ("cloud_backup_enabled" IN (0, 1))',
     ),
   );
+  static const VerificationMeta _userNameMeta = const VerificationMeta(
+    'userName',
+  );
+  @override
+  late final GeneratedColumn<String> userName = GeneratedColumn<String>(
+    'user_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _lastSyncAtMeta = const VerificationMeta(
     'lastSyncAt',
   );
@@ -2163,6 +2234,7 @@ class $SettingsRowsTable extends SettingsRows
     catchupWindowDays,
     longRunCatchupWindowDays,
     cloudBackupEnabled,
+    userName,
     lastSyncAt,
   ];
   @override
@@ -2235,6 +2307,12 @@ class $SettingsRowsTable extends SettingsRows
     } else if (isInserting) {
       context.missing(_cloudBackupEnabledMeta);
     }
+    if (data.containsKey('user_name')) {
+      context.handle(
+        _userNameMeta,
+        userName.isAcceptableOrUnknown(data['user_name']!, _userNameMeta),
+      );
+    }
     if (data.containsKey('last_sync_at')) {
       context.handle(
         _lastSyncAtMeta,
@@ -2291,6 +2369,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.bool,
         data['${effectivePrefix}cloud_backup_enabled'],
       )!,
+      userName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_name'],
+      )!,
       lastSyncAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_sync_at'],
@@ -2321,6 +2403,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   final int longRunCatchupWindowDays;
   final bool cloudBackupEnabled;
 
+  /// Display name captured during onboarding (empty string = not provided).
+  final String userName;
+
   /// Last successful Health Connect sync (null until first sync).
   final DateTime? lastSyncAt;
   const SettingsRow({
@@ -2332,6 +2417,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.catchupWindowDays,
     required this.longRunCatchupWindowDays,
     required this.cloudBackupEnabled,
+    required this.userName,
     this.lastSyncAt,
   });
   @override
@@ -2357,6 +2443,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       longRunCatchupWindowDays,
     );
     map['cloud_backup_enabled'] = Variable<bool>(cloudBackupEnabled);
+    map['user_name'] = Variable<String>(userName);
     if (!nullToAbsent || lastSyncAt != null) {
       map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
     }
@@ -2373,6 +2460,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       catchupWindowDays: Value(catchupWindowDays),
       longRunCatchupWindowDays: Value(longRunCatchupWindowDays),
       cloudBackupEnabled: Value(cloudBackupEnabled),
+      userName: Value(userName),
       lastSyncAt: lastSyncAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSyncAt),
@@ -2405,6 +2493,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         json['longRunCatchupWindowDays'],
       ),
       cloudBackupEnabled: serializer.fromJson<bool>(json['cloudBackupEnabled']),
+      userName: serializer.fromJson<String>(json['userName']),
       lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
     );
   }
@@ -2428,6 +2517,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         longRunCatchupWindowDays,
       ),
       'cloudBackupEnabled': serializer.toJson<bool>(cloudBackupEnabled),
+      'userName': serializer.toJson<String>(userName),
       'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
     };
   }
@@ -2441,6 +2531,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     int? catchupWindowDays,
     int? longRunCatchupWindowDays,
     bool? cloudBackupEnabled,
+    String? userName,
     Value<DateTime?> lastSyncAt = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
@@ -2455,6 +2546,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     longRunCatchupWindowDays:
         longRunCatchupWindowDays ?? this.longRunCatchupWindowDays,
     cloudBackupEnabled: cloudBackupEnabled ?? this.cloudBackupEnabled,
+    userName: userName ?? this.userName,
     lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
@@ -2479,6 +2571,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       cloudBackupEnabled: data.cloudBackupEnabled.present
           ? data.cloudBackupEnabled.value
           : this.cloudBackupEnabled,
+      userName: data.userName.present ? data.userName.value : this.userName,
       lastSyncAt: data.lastSyncAt.present
           ? data.lastSyncAt.value
           : this.lastSyncAt,
@@ -2496,6 +2589,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('catchupWindowDays: $catchupWindowDays, ')
           ..write('longRunCatchupWindowDays: $longRunCatchupWindowDays, ')
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
+          ..write('userName: $userName, ')
           ..write('lastSyncAt: $lastSyncAt')
           ..write(')'))
         .toString();
@@ -2511,6 +2605,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     catchupWindowDays,
     longRunCatchupWindowDays,
     cloudBackupEnabled,
+    userName,
     lastSyncAt,
   );
   @override
@@ -2525,6 +2620,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.catchupWindowDays == this.catchupWindowDays &&
           other.longRunCatchupWindowDays == this.longRunCatchupWindowDays &&
           other.cloudBackupEnabled == this.cloudBackupEnabled &&
+          other.userName == this.userName &&
           other.lastSyncAt == this.lastSyncAt);
 }
 
@@ -2537,6 +2633,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> catchupWindowDays;
   final Value<int> longRunCatchupWindowDays;
   final Value<bool> cloudBackupEnabled;
+  final Value<String> userName;
   final Value<DateTime?> lastSyncAt;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
@@ -2547,6 +2644,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.catchupWindowDays = const Value.absent(),
     this.longRunCatchupWindowDays = const Value.absent(),
     this.cloudBackupEnabled = const Value.absent(),
+    this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
@@ -2558,6 +2656,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     required int catchupWindowDays,
     required int longRunCatchupWindowDays,
     required bool cloudBackupEnabled,
+    this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
   }) : units = Value(units),
        reminderMorningMinutes = Value(reminderMorningMinutes),
@@ -2575,6 +2674,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<int>? catchupWindowDays,
     Expression<int>? longRunCatchupWindowDays,
     Expression<bool>? cloudBackupEnabled,
+    Expression<String>? userName,
     Expression<DateTime>? lastSyncAt,
   }) {
     return RawValuesInsertable({
@@ -2591,6 +2691,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
         'long_run_catchup_window_days': longRunCatchupWindowDays,
       if (cloudBackupEnabled != null)
         'cloud_backup_enabled': cloudBackupEnabled,
+      if (userName != null) 'user_name': userName,
       if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
     });
   }
@@ -2604,6 +2705,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<int>? catchupWindowDays,
     Value<int>? longRunCatchupWindowDays,
     Value<bool>? cloudBackupEnabled,
+    Value<String>? userName,
     Value<DateTime?>? lastSyncAt,
   }) {
     return SettingsRowsCompanion(
@@ -2619,6 +2721,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       longRunCatchupWindowDays:
           longRunCatchupWindowDays ?? this.longRunCatchupWindowDays,
       cloudBackupEnabled: cloudBackupEnabled ?? this.cloudBackupEnabled,
+      userName: userName ?? this.userName,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
     );
   }
@@ -2662,6 +2765,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (cloudBackupEnabled.present) {
       map['cloud_backup_enabled'] = Variable<bool>(cloudBackupEnabled.value);
     }
+    if (userName.present) {
+      map['user_name'] = Variable<String>(userName.value);
+    }
     if (lastSyncAt.present) {
       map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
     }
@@ -2679,6 +2785,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('catchupWindowDays: $catchupWindowDays, ')
           ..write('longRunCatchupWindowDays: $longRunCatchupWindowDays, ')
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
+          ..write('userName: $userName, ')
           ..write('lastSyncAt: $lastSyncAt')
           ..write(')'))
         .toString();
@@ -3690,6 +3797,7 @@ typedef $$CompletedRunsTableCreateCompanionBuilder =
       Value<int?> maxHr,
       Value<double?> calories,
       required RunSource source,
+      Value<ActivityType> activityType,
       Value<String?> externalId,
     });
 typedef $$CompletedRunsTableUpdateCompanionBuilder =
@@ -3704,6 +3812,7 @@ typedef $$CompletedRunsTableUpdateCompanionBuilder =
       Value<int?> maxHr,
       Value<double?> calories,
       Value<RunSource> source,
+      Value<ActivityType> activityType,
       Value<String?> externalId,
     });
 
@@ -3790,6 +3899,12 @@ class $$CompletedRunsTableFilterComposer
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
+  ColumnWithTypeConverterFilters<ActivityType, ActivityType, String>
+  get activityType => $composableBuilder(
+    column: $table.activityType,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
   ColumnFilters<String> get externalId => $composableBuilder(
     column: $table.externalId,
     builder: (column) => ColumnFilters(column),
@@ -3873,6 +3988,11 @@ class $$CompletedRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get activityType => $composableBuilder(
+    column: $table.activityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get externalId => $composableBuilder(
     column: $table.externalId,
     builder: (column) => ColumnOrderings(column),
@@ -3944,6 +4064,12 @@ class $$CompletedRunsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<RunSource, String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<ActivityType, String> get activityType =>
+      $composableBuilder(
+        column: $table.activityType,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<String> get externalId => $composableBuilder(
     column: $table.externalId,
     builder: (column) => column,
@@ -4011,6 +4137,7 @@ class $$CompletedRunsTableTableManager
                 Value<int?> maxHr = const Value.absent(),
                 Value<double?> calories = const Value.absent(),
                 Value<RunSource> source = const Value.absent(),
+                Value<ActivityType> activityType = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
               }) => CompletedRunsCompanion(
                 id: id,
@@ -4023,6 +4150,7 @@ class $$CompletedRunsTableTableManager
                 maxHr: maxHr,
                 calories: calories,
                 source: source,
+                activityType: activityType,
                 externalId: externalId,
               ),
           createCompanionCallback:
@@ -4037,6 +4165,7 @@ class $$CompletedRunsTableTableManager
                 Value<int?> maxHr = const Value.absent(),
                 Value<double?> calories = const Value.absent(),
                 required RunSource source,
+                Value<ActivityType> activityType = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
               }) => CompletedRunsCompanion.insert(
                 id: id,
@@ -4049,6 +4178,7 @@ class $$CompletedRunsTableTableManager
                 maxHr: maxHr,
                 calories: calories,
                 source: source,
+                activityType: activityType,
                 externalId: externalId,
               ),
           withReferenceMapper: (p0) => p0
@@ -4128,6 +4258,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       required int catchupWindowDays,
       required int longRunCatchupWindowDays,
       required bool cloudBackupEnabled,
+      Value<String> userName,
       Value<DateTime?> lastSyncAt,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
@@ -4140,6 +4271,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<int> catchupWindowDays,
       Value<int> longRunCatchupWindowDays,
       Value<bool> cloudBackupEnabled,
+      Value<String> userName,
       Value<DateTime?> lastSyncAt,
     });
 
@@ -4191,6 +4323,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<bool> get cloudBackupEnabled => $composableBuilder(
     column: $table.cloudBackupEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userName => $composableBuilder(
+    column: $table.userName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4249,6 +4386,11 @@ class $$SettingsRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userName => $composableBuilder(
+    column: $table.userName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastSyncAt => $composableBuilder(
     column: $table.lastSyncAt,
     builder: (column) => ColumnOrderings(column),
@@ -4301,6 +4443,9 @@ class $$SettingsRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get userName =>
+      $composableBuilder(column: $table.userName, builder: (column) => column);
+
   GeneratedColumn<DateTime> get lastSyncAt => $composableBuilder(
     column: $table.lastSyncAt,
     builder: (column) => column,
@@ -4347,6 +4492,7 @@ class $$SettingsRowsTableTableManager
                 Value<int> catchupWindowDays = const Value.absent(),
                 Value<int> longRunCatchupWindowDays = const Value.absent(),
                 Value<bool> cloudBackupEnabled = const Value.absent(),
+                Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
@@ -4357,6 +4503,7 @@ class $$SettingsRowsTableTableManager
                 catchupWindowDays: catchupWindowDays,
                 longRunCatchupWindowDays: longRunCatchupWindowDays,
                 cloudBackupEnabled: cloudBackupEnabled,
+                userName: userName,
                 lastSyncAt: lastSyncAt,
               ),
           createCompanionCallback:
@@ -4369,6 +4516,7 @@ class $$SettingsRowsTableTableManager
                 required int catchupWindowDays,
                 required int longRunCatchupWindowDays,
                 required bool cloudBackupEnabled,
+                Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
@@ -4379,6 +4527,7 @@ class $$SettingsRowsTableTableManager
                 catchupWindowDays: catchupWindowDays,
                 longRunCatchupWindowDays: longRunCatchupWindowDays,
                 cloudBackupEnabled: cloudBackupEnabled,
+                userName: userName,
                 lastSyncAt: lastSyncAt,
               ),
           withReferenceMapper: (p0) => p0

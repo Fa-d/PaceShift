@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/motion.dart';
 import 'genui/ask_coach_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'plan/plan_screen.dart';
 import 'providers/providers.dart';
 import 'run_detail/run_detail_screen.dart';
+import 'settings/about_screen.dart';
+import 'settings/data_settings_screen.dart';
 import 'settings/settings_screen.dart';
+import 'settings/training_settings_screen.dart';
 import 'stats/stats_screen.dart';
 import 'sync/sync_screen.dart';
 import 'today/today_screen.dart';
@@ -52,18 +56,41 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/run/:id',
-        builder: (_, state) =>
-            RunDetailScreen(runId: int.parse(state.pathParameters['id']!)),
+        pageBuilder: (_, state) => sharedAxisPage(
+          key: state.pageKey,
+          child:
+              RunDetailScreen(runId: int.parse(state.pathParameters['id']!)),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/sync',
-        builder: (context, state) => const SyncScreen(),
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const SyncScreen()),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/coach',
-        builder: (context, state) => const AskCoachScreen(),
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const AskCoachScreen()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/settings/training',
+        pageBuilder: (context, state) => sharedAxisPage(
+            key: state.pageKey, child: const TrainingSettingsScreen()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/settings/data',
+        pageBuilder: (context, state) => sharedAxisPage(
+            key: state.pageKey, child: const DataSettingsScreen()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/settings/about',
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const AboutScreen()),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(navigationShell: shell),

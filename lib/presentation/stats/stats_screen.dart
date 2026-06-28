@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/count_up_text.dart';
 import '../widgets/readiness_dial.dart';
 import 'stats_data.dart';
 
@@ -47,7 +49,9 @@ class StatsScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: const Icon(Icons.flag_circle_rounded,
                             color: AppTheme.ember, size: 32),
-                        title: Text(formatFinishTime(prediction.predictedSec),
+                        title: CountUpText(
+                            value: prediction.predictedSec,
+                            format: (n) => formatFinishTime(n.round()),
                             style: theme.textTheme.titleLarge
                                 ?.copyWith(fontWeight: FontWeight.w700)),
                         subtitle: Text(prediction.confident
@@ -65,6 +69,8 @@ class StatsScreen extends ConsumerWidget {
                           value: '${stats.completionStreak}',
                           label: 'run streak',
                           color: AppTheme.ember,
+                          countTo: stats.completionStreak,
+                          countFormat: (n) => '${n.round()}',
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -74,6 +80,8 @@ class StatsScreen extends ConsumerWidget {
                           value: stats.totalCompletedKm.toStringAsFixed(0),
                           label: 'total km',
                           color: const Color(0xFF3A7BD5),
+                          countTo: stats.totalCompletedKm,
+                          countFormat: (n) => n.round().toString(),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -83,6 +91,8 @@ class StatsScreen extends ConsumerWidget {
                           value: stats.longestRunKm.toStringAsFixed(0),
                           label: 'longest km',
                           color: const Color(0xFF2BB673),
+                          countTo: stats.longestRunKm,
+                          countFormat: (n) => n.round().toString(),
                         ),
                       ),
                     ],
@@ -109,7 +119,7 @@ class StatsScreen extends ConsumerWidget {
                           child: _LongRunChart(data: stats.longRunProgression)),
                     ),
                   ),
-                ],
+                ].revealStagger(context),
               ),
       ),
     );
@@ -122,16 +132,22 @@ class _StatTile extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.countTo,
+    this.countFormat,
   });
 
   final IconData icon;
   final String value;
   final String label;
   final Color color;
+  final num? countTo;
+  final String Function(num)? countFormat;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final valueStyle =
+        theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700);
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -139,9 +155,11 @@ class _StatTile extends StatelessWidget {
           children: [
             Icon(icon, color: color),
             const SizedBox(height: 8),
-            Text(value,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            if (countTo != null && countFormat != null)
+              CountUpText(
+                  value: countTo!, format: countFormat!, style: valueStyle)
+            else
+              Text(value, style: valueStyle),
             Text(label,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall
@@ -231,6 +249,8 @@ class _WeeklyVolumeChart extends StatelessWidget {
             ),
         ],
       ),
+      duration: AppMotion.on(context) ? AppMotion.fill : Duration.zero,
+      curve: AppMotion.standard,
     );
   }
 }
@@ -313,6 +333,8 @@ class _LongRunChart extends StatelessWidget {
           ),
         ],
       ),
+      duration: AppMotion.on(context) ? AppMotion.fill : Duration.zero,
+      curve: AppMotion.standard,
     );
   }
 }

@@ -22,7 +22,10 @@ class RunCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              RunTypeBadge(type: run.type),
+              Hero(
+                tag: 'run-badge-${run.id}',
+                child: RunTypeBadge(type: run.type),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

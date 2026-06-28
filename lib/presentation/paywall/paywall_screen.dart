@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../providers/auth_providers.dart';
 import '../auth/sign_in_screen.dart';
@@ -100,7 +101,7 @@ class PaywallScreen extends ConsumerWidget {
                           ],
                         ),
                       )),
-                ],
+                ].revealStagger(context),
               ),
             ),
             Padding(

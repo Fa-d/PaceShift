@@ -18,7 +18,8 @@ mixin _$AppSettings {
  int get reminderMorningMinutes;/// Evening check-in time, minutes since midnight (default 20:00).
  int get reminderEveningMinutes; Aggressiveness get adaptivityAggressiveness;/// Days within which an ordinary missed run can still be made up.
  int get catchupWindowDays;/// Longer make-up window for long runs.
- int get longRunCatchupWindowDays; bool get cloudBackupEnabled;
+ int get longRunCatchupWindowDays; bool get cloudBackupEnabled;/// Display name captured during onboarding (empty = not provided).
+ String get userName;
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +30,16 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.units, units) || other.units == units)&&(identical(other.reminderMorningMinutes, reminderMorningMinutes) || other.reminderMorningMinutes == reminderMorningMinutes)&&(identical(other.reminderEveningMinutes, reminderEveningMinutes) || other.reminderEveningMinutes == reminderEveningMinutes)&&(identical(other.adaptivityAggressiveness, adaptivityAggressiveness) || other.adaptivityAggressiveness == adaptivityAggressiveness)&&(identical(other.catchupWindowDays, catchupWindowDays) || other.catchupWindowDays == catchupWindowDays)&&(identical(other.longRunCatchupWindowDays, longRunCatchupWindowDays) || other.longRunCatchupWindowDays == longRunCatchupWindowDays)&&(identical(other.cloudBackupEnabled, cloudBackupEnabled) || other.cloudBackupEnabled == cloudBackupEnabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.units, units) || other.units == units)&&(identical(other.reminderMorningMinutes, reminderMorningMinutes) || other.reminderMorningMinutes == reminderMorningMinutes)&&(identical(other.reminderEveningMinutes, reminderEveningMinutes) || other.reminderEveningMinutes == reminderEveningMinutes)&&(identical(other.adaptivityAggressiveness, adaptivityAggressiveness) || other.adaptivityAggressiveness == adaptivityAggressiveness)&&(identical(other.catchupWindowDays, catchupWindowDays) || other.catchupWindowDays == catchupWindowDays)&&(identical(other.longRunCatchupWindowDays, longRunCatchupWindowDays) || other.longRunCatchupWindowDays == longRunCatchupWindowDays)&&(identical(other.cloudBackupEnabled, cloudBackupEnabled) || other.cloudBackupEnabled == cloudBackupEnabled)&&(identical(other.userName, userName) || other.userName == userName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,units,reminderMorningMinutes,reminderEveningMinutes,adaptivityAggressiveness,catchupWindowDays,longRunCatchupWindowDays,cloudBackupEnabled);
+int get hashCode => Object.hash(runtimeType,units,reminderMorningMinutes,reminderEveningMinutes,adaptivityAggressiveness,catchupWindowDays,longRunCatchupWindowDays,cloudBackupEnabled,userName);
 
 @override
 String toString() {
-  return 'AppSettings(units: $units, reminderMorningMinutes: $reminderMorningMinutes, reminderEveningMinutes: $reminderEveningMinutes, adaptivityAggressiveness: $adaptivityAggressiveness, catchupWindowDays: $catchupWindowDays, longRunCatchupWindowDays: $longRunCatchupWindowDays, cloudBackupEnabled: $cloudBackupEnabled)';
+  return 'AppSettings(units: $units, reminderMorningMinutes: $reminderMorningMinutes, reminderEveningMinutes: $reminderEveningMinutes, adaptivityAggressiveness: $adaptivityAggressiveness, catchupWindowDays: $catchupWindowDays, longRunCatchupWindowDays: $longRunCatchupWindowDays, cloudBackupEnabled: $cloudBackupEnabled, userName: $userName)';
 }
 
 
@@ -49,7 +50,7 @@ abstract mixin class $AppSettingsCopyWith<$Res>  {
   factory $AppSettingsCopyWith(AppSettings value, $Res Function(AppSettings) _then) = _$AppSettingsCopyWithImpl;
 @useResult
 $Res call({
- UnitSystem units, int reminderMorningMinutes, int reminderEveningMinutes, Aggressiveness adaptivityAggressiveness, int catchupWindowDays, int longRunCatchupWindowDays, bool cloudBackupEnabled
+ UnitSystem units, int reminderMorningMinutes, int reminderEveningMinutes, Aggressiveness adaptivityAggressiveness, int catchupWindowDays, int longRunCatchupWindowDays, bool cloudBackupEnabled, String userName
 });
 
 
@@ -66,7 +67,7 @@ class _$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? units = null,Object? reminderMorningMinutes = null,Object? reminderEveningMinutes = null,Object? adaptivityAggressiveness = null,Object? catchupWindowDays = null,Object? longRunCatchupWindowDays = null,Object? cloudBackupEnabled = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? units = null,Object? reminderMorningMinutes = null,Object? reminderEveningMinutes = null,Object? adaptivityAggressiveness = null,Object? catchupWindowDays = null,Object? longRunCatchupWindowDays = null,Object? cloudBackupEnabled = null,Object? userName = null,}) {
   return _then(_self.copyWith(
 units: null == units ? _self.units : units // ignore: cast_nullable_to_non_nullable
 as UnitSystem,reminderMorningMinutes: null == reminderMorningMinutes ? _self.reminderMorningMinutes : reminderMorningMinutes // ignore: cast_nullable_to_non_nullable
@@ -75,7 +76,8 @@ as int,adaptivityAggressiveness: null == adaptivityAggressiveness ? _self.adapti
 as Aggressiveness,catchupWindowDays: null == catchupWindowDays ? _self.catchupWindowDays : catchupWindowDays // ignore: cast_nullable_to_non_nullable
 as int,longRunCatchupWindowDays: null == longRunCatchupWindowDays ? _self.longRunCatchupWindowDays : longRunCatchupWindowDays // ignore: cast_nullable_to_non_nullable
 as int,cloudBackupEnabled: null == cloudBackupEnabled ? _self.cloudBackupEnabled : cloudBackupEnabled // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,userName: null == userName ? _self.userName : userName // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -160,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled,  String userName)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled);case _:
+return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled,_that.userName);case _:
   return orElse();
 
 }
@@ -181,10 +183,10 @@ return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMi
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled,  String userName)  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings():
-return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled);case _:
+return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled,_that.userName);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +203,10 @@ return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMi
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UnitSystem units,  int reminderMorningMinutes,  int reminderEveningMinutes,  Aggressiveness adaptivityAggressiveness,  int catchupWindowDays,  int longRunCatchupWindowDays,  bool cloudBackupEnabled,  String userName)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled);case _:
+return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMinutes,_that.adaptivityAggressiveness,_that.catchupWindowDays,_that.longRunCatchupWindowDays,_that.cloudBackupEnabled,_that.userName);case _:
   return null;
 
 }
@@ -216,7 +218,7 @@ return $default(_that.units,_that.reminderMorningMinutes,_that.reminderEveningMi
 
 
 class _AppSettings extends AppSettings {
-  const _AppSettings({this.units = UnitSystem.metric, this.reminderMorningMinutes = 7 * 60, this.reminderEveningMinutes = 20 * 60, this.adaptivityAggressiveness = Aggressiveness.balanced, this.catchupWindowDays = 7, this.longRunCatchupWindowDays = 10, this.cloudBackupEnabled = false}): super._();
+  const _AppSettings({this.units = UnitSystem.metric, this.reminderMorningMinutes = 7 * 60, this.reminderEveningMinutes = 20 * 60, this.adaptivityAggressiveness = Aggressiveness.balanced, this.catchupWindowDays = 7, this.longRunCatchupWindowDays = 10, this.cloudBackupEnabled = false, this.userName = ''}): super._();
   
 
 @override@JsonKey() final  UnitSystem units;
@@ -230,6 +232,8 @@ class _AppSettings extends AppSettings {
 /// Longer make-up window for long runs.
 @override@JsonKey() final  int longRunCatchupWindowDays;
 @override@JsonKey() final  bool cloudBackupEnabled;
+/// Display name captured during onboarding (empty = not provided).
+@override@JsonKey() final  String userName;
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -241,16 +245,16 @@ _$AppSettingsCopyWith<_AppSettings> get copyWith => __$AppSettingsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.units, units) || other.units == units)&&(identical(other.reminderMorningMinutes, reminderMorningMinutes) || other.reminderMorningMinutes == reminderMorningMinutes)&&(identical(other.reminderEveningMinutes, reminderEveningMinutes) || other.reminderEveningMinutes == reminderEveningMinutes)&&(identical(other.adaptivityAggressiveness, adaptivityAggressiveness) || other.adaptivityAggressiveness == adaptivityAggressiveness)&&(identical(other.catchupWindowDays, catchupWindowDays) || other.catchupWindowDays == catchupWindowDays)&&(identical(other.longRunCatchupWindowDays, longRunCatchupWindowDays) || other.longRunCatchupWindowDays == longRunCatchupWindowDays)&&(identical(other.cloudBackupEnabled, cloudBackupEnabled) || other.cloudBackupEnabled == cloudBackupEnabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.units, units) || other.units == units)&&(identical(other.reminderMorningMinutes, reminderMorningMinutes) || other.reminderMorningMinutes == reminderMorningMinutes)&&(identical(other.reminderEveningMinutes, reminderEveningMinutes) || other.reminderEveningMinutes == reminderEveningMinutes)&&(identical(other.adaptivityAggressiveness, adaptivityAggressiveness) || other.adaptivityAggressiveness == adaptivityAggressiveness)&&(identical(other.catchupWindowDays, catchupWindowDays) || other.catchupWindowDays == catchupWindowDays)&&(identical(other.longRunCatchupWindowDays, longRunCatchupWindowDays) || other.longRunCatchupWindowDays == longRunCatchupWindowDays)&&(identical(other.cloudBackupEnabled, cloudBackupEnabled) || other.cloudBackupEnabled == cloudBackupEnabled)&&(identical(other.userName, userName) || other.userName == userName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,units,reminderMorningMinutes,reminderEveningMinutes,adaptivityAggressiveness,catchupWindowDays,longRunCatchupWindowDays,cloudBackupEnabled);
+int get hashCode => Object.hash(runtimeType,units,reminderMorningMinutes,reminderEveningMinutes,adaptivityAggressiveness,catchupWindowDays,longRunCatchupWindowDays,cloudBackupEnabled,userName);
 
 @override
 String toString() {
-  return 'AppSettings(units: $units, reminderMorningMinutes: $reminderMorningMinutes, reminderEveningMinutes: $reminderEveningMinutes, adaptivityAggressiveness: $adaptivityAggressiveness, catchupWindowDays: $catchupWindowDays, longRunCatchupWindowDays: $longRunCatchupWindowDays, cloudBackupEnabled: $cloudBackupEnabled)';
+  return 'AppSettings(units: $units, reminderMorningMinutes: $reminderMorningMinutes, reminderEveningMinutes: $reminderEveningMinutes, adaptivityAggressiveness: $adaptivityAggressiveness, catchupWindowDays: $catchupWindowDays, longRunCatchupWindowDays: $longRunCatchupWindowDays, cloudBackupEnabled: $cloudBackupEnabled, userName: $userName)';
 }
 
 
@@ -261,7 +265,7 @@ abstract mixin class _$AppSettingsCopyWith<$Res> implements $AppSettingsCopyWith
   factory _$AppSettingsCopyWith(_AppSettings value, $Res Function(_AppSettings) _then) = __$AppSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- UnitSystem units, int reminderMorningMinutes, int reminderEveningMinutes, Aggressiveness adaptivityAggressiveness, int catchupWindowDays, int longRunCatchupWindowDays, bool cloudBackupEnabled
+ UnitSystem units, int reminderMorningMinutes, int reminderEveningMinutes, Aggressiveness adaptivityAggressiveness, int catchupWindowDays, int longRunCatchupWindowDays, bool cloudBackupEnabled, String userName
 });
 
 
@@ -278,7 +282,7 @@ class __$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? units = null,Object? reminderMorningMinutes = null,Object? reminderEveningMinutes = null,Object? adaptivityAggressiveness = null,Object? catchupWindowDays = null,Object? longRunCatchupWindowDays = null,Object? cloudBackupEnabled = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? units = null,Object? reminderMorningMinutes = null,Object? reminderEveningMinutes = null,Object? adaptivityAggressiveness = null,Object? catchupWindowDays = null,Object? longRunCatchupWindowDays = null,Object? cloudBackupEnabled = null,Object? userName = null,}) {
   return _then(_AppSettings(
 units: null == units ? _self.units : units // ignore: cast_nullable_to_non_nullable
 as UnitSystem,reminderMorningMinutes: null == reminderMorningMinutes ? _self.reminderMorningMinutes : reminderMorningMinutes // ignore: cast_nullable_to_non_nullable
@@ -287,7 +291,8 @@ as int,adaptivityAggressiveness: null == adaptivityAggressiveness ? _self.adapti
 as Aggressiveness,catchupWindowDays: null == catchupWindowDays ? _self.catchupWindowDays : catchupWindowDays // ignore: cast_nullable_to_non_nullable
 as int,longRunCatchupWindowDays: null == longRunCatchupWindowDays ? _self.longRunCatchupWindowDays : longRunCatchupWindowDays // ignore: cast_nullable_to_non_nullable
 as int,cloudBackupEnabled: null == cloudBackupEnabled ? _self.cloudBackupEnabled : cloudBackupEnabled // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,userName: null == userName ? _self.userName : userName // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

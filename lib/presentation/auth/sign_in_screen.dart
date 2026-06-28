@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/motion.dart';
 import '../../data/api/social_auth.dart';
 import '../providers/auth_providers.dart';
 
@@ -183,7 +184,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant),
               ),
-            ],
+            ].revealStagger(context),
           ),
         ),
       ),

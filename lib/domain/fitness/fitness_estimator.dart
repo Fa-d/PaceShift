@@ -1,5 +1,6 @@
 import '../models/completed_run.dart';
 import '../paces/vdot.dart';
+import 'effort_validity.dart';
 
 /// Estimates the athlete's current fitness (VDOT) from logged runs.
 ///
@@ -21,8 +22,10 @@ class FitnessEstimator {
     final cutoff = asOf ?? DateTime.now();
     final efforts = runs
         .where((r) =>
+            r.isRun &&
             r.actualDistanceKm >= minQualityKm &&
-            r.durationSec > 0 &&
+            isPlausibleRunningEffort(
+                distanceKm: r.actualDistanceKm, durationSec: r.durationSec) &&
             !r.date.isAfter(cutoff))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));

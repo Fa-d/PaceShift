@@ -1,5 +1,6 @@
 import '../models/completed_run.dart';
 import '../paces/vdot.dart';
+import 'effort_validity.dart';
 import 'fitness_estimator.dart';
 
 /// A predicted race outcome.
@@ -46,9 +47,12 @@ class RacePredictor {
 
     final fromVdot = _timeForVdot(raceDistanceKm, vdot);
 
-    // Riegel cross-check from the longest qualifying effort.
+    // Riegel cross-check from the longest qualifying *running* effort.
     final longest = runs
-        .where((r) => r.actualDistanceKm > 0 && r.durationSec > 0)
+        .where((r) =>
+            r.isRun &&
+            isPlausibleRunningEffort(
+                distanceKm: r.actualDistanceKm, durationSec: r.durationSec))
         .fold<CompletedRun?>(null, (best, r) =>
             best == null || r.actualDistanceKm > best.actualDistanceKm ? r : best);
 
@@ -61,6 +65,11 @@ class RacePredictor {
       );
       predicted = ((fromVdot + riegel) / 2).round();
     }
+
+    // Final sanity clamp: a prediction faster than ~2:30/km is physically
+    // implausible (below the marathon world record) — treat as no signal rather
+    // than show an absurd time.
+    if (predicted <= 0 || predicted / raceDistanceKm < 150) return null;
 
     final confident = longest != null &&
         longest.actualDistanceKm >= raceDistanceKm * confidentFractionOfRace;

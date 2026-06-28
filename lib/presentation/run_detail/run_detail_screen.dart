@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../domain/models/completed_run.dart';
 import '../../domain/models/enums.dart';
@@ -47,7 +48,10 @@ class RunDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  RunTypeBadge(type: run.type, size: 56),
+                  Hero(
+                    tag: 'run-badge-${run.id}',
+                    child: RunTypeBadge(type: run.type, size: 56),
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -82,7 +86,10 @@ class RunDetailScreen extends ConsumerWidget {
                 runSpacing: 16,
                 children: [
                   MetricBlock(
-                      value: formatKm(run.targetDistanceKm), label: 'Distance'),
+                      value: formatKm(run.targetDistanceKm),
+                      label: 'Distance',
+                      countTo: run.targetDistanceKm,
+                      countFormat: (n) => formatKm(n.toDouble())),
                   if (run.targetPaceSecPerKm != null)
                     MetricBlock(
                         value: formatPace(run.targetPaceSecPerKm!),
@@ -91,7 +98,10 @@ class RunDetailScreen extends ConsumerWidget {
                     MetricBlock(value: run.runWalkRatio!, label: 'Run / walk'),
                   if (run.targetDurationMin != null)
                     MetricBlock(
-                        value: '${run.targetDurationMin}m', label: 'Duration'),
+                        value: '${run.targetDurationMin}m',
+                        label: 'Duration',
+                        countTo: run.targetDurationMin,
+                        countFormat: (n) => '${n.round()}m'),
                 ],
               ),
             ),
@@ -159,20 +169,34 @@ class _ActualCard extends StatelessWidget {
               children: [
                 MetricBlock(
                     value: formatKm(completed.actualDistanceKm),
-                    label: 'Distance'),
+                    label: 'Distance',
+                    countTo: completed.actualDistanceKm,
+                    countFormat: (n) => formatKm(n.toDouble())),
                 MetricBlock(
                     value: formatDuration(completed.durationSec),
-                    label: 'Time'),
+                    label: 'Time',
+                    countTo: completed.durationSec,
+                    countFormat: (n) => formatDuration(n.round())),
                 MetricBlock(
                     value: formatPace(completed.avgPaceSecPerKm), label: 'Pace'),
                 if (completed.avgHr != null)
-                  MetricBlock(value: '${completed.avgHr}', label: 'Avg HR'),
+                  MetricBlock(
+                      value: '${completed.avgHr}',
+                      label: 'Avg HR',
+                      countTo: completed.avgHr,
+                      countFormat: (n) => '${n.round()}'),
                 if (completed.maxHr != null)
-                  MetricBlock(value: '${completed.maxHr}', label: 'Max HR'),
+                  MetricBlock(
+                      value: '${completed.maxHr}',
+                      label: 'Max HR',
+                      countTo: completed.maxHr,
+                      countFormat: (n) => '${n.round()}'),
                 if (completed.calories != null)
                   MetricBlock(
                       value: completed.calories!.toStringAsFixed(0),
-                      label: 'kcal'),
+                      label: 'kcal',
+                      countTo: completed.calories,
+                      countFormat: (n) => n.round().toString()),
               ],
             ),
             const SizedBox(height: 12),
@@ -229,7 +253,7 @@ class _SegmentsCard extends StatelessWidget {
                         style: theme.textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.w600)),
               ),
-          ],
+          ].revealStagger(context),
         ),
       ),
     );

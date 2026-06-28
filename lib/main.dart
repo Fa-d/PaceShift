@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
@@ -17,6 +18,8 @@ const _revenueCatKey = String.fromEnvironment('REVENUECAT_API_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Replay entrance animations after a hot reload during development.
+  Animate.restartOnHotReload = true;
 
   // Open the database once and share it app-wide, then seed default settings.
   final db = AppDatabase();

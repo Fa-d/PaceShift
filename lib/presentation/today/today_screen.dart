@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/date_utils.dart';
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../domain/models/completed_run.dart';
 import '../../domain/engine/reschedule_outcome.dart';
@@ -15,8 +16,17 @@ import '../genui/genui_surface_view.dart';
 import '../providers/providers.dart';
 import '../shift/shift_summary.dart';
 import '../widgets/common.dart';
+import '../widgets/count_up_text.dart';
 import '../widgets/manual_log_sheet.dart';
 import '../widgets/pro_gate.dart';
+
+/// Time-of-day greeting prefix used when a display name is set.
+String _greeting() {
+  final h = DateTime.now().hour;
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
@@ -27,6 +37,8 @@ class TodayScreen extends ConsumerWidget {
     final plan = ref.watch(activePlanProvider).value;
     final todayRuns = ref.watch(todayRunsProvider);
     final t = ref.watch(todayProvider);
+    final name = ref.watch(settingsProvider).value?.userName.trim() ?? '';
+    final hasName = name.isNotEmpty;
 
     return Scaffold(
       body: SafeArea(
@@ -41,8 +53,12 @@ class TodayScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Today', style: theme.textTheme.headlineMedium),
-                        Text(formatDateLabel(t),
+                        Text(hasName ? '${_greeting()}, $name' : 'Today',
+                            style: theme.textTheme.headlineMedium),
+                        Text(
+                            hasName
+                                ? 'Today · ${formatDateLabel(t)}'
+                                : formatDateLabel(t),
                             style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
                       ],
@@ -87,7 +103,7 @@ class TodayScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Log an extra run'),
               ),
-            ],
+            ].revealStagger(context),
           ),
         ),
       ),
@@ -326,19 +342,26 @@ class _ReadinessGlance extends ConsumerWidget {
                 SizedBox(
                   width: 38,
                   height: 38,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: score / 100,
-                        strokeWidth: 5,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        color: color,
-                      ),
-                      Text('$score',
-                          style: theme.textTheme.labelMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                    ],
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration:
+                        AppMotion.on(context) ? AppMotion.fill : Duration.zero,
+                    curve: AppMotion.standard,
+                    builder: (context, t, _) => Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: (score / 100) * t,
+                          strokeWidth: 5,
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                          color: color,
+                        ),
+                        Text('${(score * t).round()}',
+                            style: theme.textTheme.labelMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -395,19 +418,29 @@ class _WeekGlance extends ConsumerWidget {
               children: [
                 Text('This week', style: theme.textTheme.titleMedium),
                 const Spacer(),
-                Text('${doneKm.toStringAsFixed(0)} / ${plannedKm.toStringAsFixed(0)} km',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppTheme.ember, fontWeight: FontWeight.w700)),
+                CountUpText(
+                  value: doneKm,
+                  format: (n) =>
+                      '${n.round()} / ${plannedKm.toStringAsFixed(0)} km',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppTheme.ember, fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: pct,
-                minHeight: 10,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                color: AppTheme.ember,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: pct),
+                duration:
+                    AppMotion.on(context) ? AppMotion.fill : Duration.zero,
+                curve: AppMotion.standard,
+                builder: (context, v, _) => LinearProgressIndicator(
+                  value: v,
+                  minHeight: 10,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  color: AppTheme.ember,
+                ),
               ),
             ),
           ],

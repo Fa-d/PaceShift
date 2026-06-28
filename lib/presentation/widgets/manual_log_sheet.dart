@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/formatting.dart';
 import '../../domain/models/planned_run.dart';
 import '../providers/providers.dart';
+import 'celebration.dart';
 
 /// Bottom sheet to log a run — either completing a [plannedRun] or recording an
 /// extra/unplanned run. The manual fallback that's always available (spec §6).
@@ -87,7 +88,13 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
           notes: notes,
         );
       }
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        // Celebrate into the root overlay before the sheet closes, so the
+        // flourish plays over the screen we return to.
+        HapticFeedback.mediumImpact();
+        Celebrate.burst(context);
+        Navigator.of(context).pop();
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

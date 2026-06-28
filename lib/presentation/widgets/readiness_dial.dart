@@ -2,9 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/motion.dart';
 import '../../domain/readiness/readiness_scorer.dart';
 
 /// A circular 0–100 readiness dial with the score and plain-language band.
+///
+/// On first appearance the arc sweeps in (with a gentle overshoot) and the
+/// score counts up from zero. Renders fully filled instantly under reduced
+/// motion.
 class ReadinessDial extends StatelessWidget {
   const ReadinessDial({super.key, required this.readiness, this.size = 180});
 
@@ -17,16 +22,13 @@ class ReadinessDial extends StatelessWidget {
         ReadinessBand.atRisk => scheme.error,
       };
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = _bandColor(theme.colorScheme);
+  Widget _dial(ThemeData theme, Color color, double progress, int score) {
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
         painter: _DialPainter(
-          progress: readiness.score / 100,
+          progress: progress,
           color: color,
           track: theme.colorScheme.surfaceContainerHighest,
         ),
@@ -34,7 +36,7 @@ class ReadinessDial extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${readiness.score}',
+              Text('$score',
                   style: theme.textTheme.displaySmall
                       ?.copyWith(fontWeight: FontWeight.w800, color: color)),
               Text(readiness.label,
@@ -47,6 +49,28 @@ class ReadinessDial extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = _bandColor(theme.colorScheme);
+    final target = readiness.score / 100;
+    if (!AppMotion.on(context)) {
+      return _dial(theme, color, target, readiness.score);
+    }
+    // Animate a single 0→1 driver: the arc overshoots, the number stays linear.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: AppMotion.fill,
+      curve: Curves.linear,
+      builder: (context, t, _) => _dial(
+        theme,
+        color,
+        target * Curves.easeOutBack.transform(t.clamp(0, 1)),
+        (readiness.score * t).round(),
       ),
     );
   }

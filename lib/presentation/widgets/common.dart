@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/formatting.dart';
 import '../../core/theme.dart';
 import '../../domain/models/enums.dart';
+import 'count_up_text.dart';
 
 /// A circular icon chip tinted with a run type's colour.
 class RunTypeBadge extends StatelessWidget {
@@ -59,26 +60,33 @@ class MetricBlock extends StatelessWidget {
     required this.value,
     required this.label,
     this.color,
+    this.countTo,
+    this.countFormat,
   });
 
   final String value;
   final String label;
   final Color? color;
 
+  /// When set together with [countFormat], the value counts up from zero.
+  final num? countTo;
+  final String Function(num)? countFormat;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final valueStyle = theme.textTheme.titleLarge?.copyWith(
+      color: color,
+      fontWeight: FontWeight.w700,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        if (countTo != null && countFormat != null)
+          CountUpText(value: countTo!, format: countFormat!, style: valueStyle)
+        else
+          Text(value, style: valueStyle),
         const SizedBox(height: 2),
         Text(
           label,

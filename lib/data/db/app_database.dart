@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'paceshift'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -29,6 +29,21 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.addColumn(plannedRuns, plannedRuns.targetPaceSecPerKm);
             await m.addColumn(plannedRuns, plannedRuns.segmentsJson);
+          }
+          // v3: onboarding captures a display name.
+          if (from < 3) {
+            await m.addColumn(settingsRows, settingsRows.userName);
+          }
+          // v4: completed runs gain an activity type (run/walk/hike). Earlier
+          // syncs imported walks/hikes as "runs" and could mis-bucket data, so
+          // wipe auto-imported rows and reset the cursor for a clean re-import.
+          if (from < 4) {
+            await m.addColumn(completedRuns, completedRuns.activityType);
+            await (delete(completedRuns)
+                  ..where((t) => t.source.equalsValue(RunSource.healthConnect)))
+                .go();
+            await (update(settingsRows)..where((t) => t.id.equals(0)))
+                .write(const SettingsRowsCompanion(lastSyncAt: Value(null)));
           }
         },
       );
@@ -135,6 +150,12 @@ class RunsDao extends DatabaseAccessor<AppDatabase> with _$RunsDaoMixin {
 
   Future<int> insertCompletedRun(CompletedRunsCompanion run) =>
       into(completedRuns).insert(run);
+
+  /// Removes all auto-imported (Health Connect) completed runs, leaving manual
+  /// entries untouched. Used to re-import cleanly after fixing sync logic.
+  Future<int> deleteHealthConnectCompletedRuns() => (delete(completedRuns)
+        ..where((t) => t.source.equalsValue(RunSource.healthConnect)))
+      .go();
 }
 
 /// Access to the single-row settings table.
@@ -154,4 +175,9 @@ class SettingsDao extends DatabaseAccessor<AppDatabase> with _$SettingsDaoMixin 
   Future<void> updateLastSync(DateTime when) =>
       (update(settingsRows)..where((t) => t.id.equals(0)))
           .write(SettingsRowsCompanion(lastSyncAt: Value(when)));
+
+  /// Clears the sync cursor so the next sync re-imports from the full window.
+  Future<void> clearLastSync() =>
+      (update(settingsRows)..where((t) => t.id.equals(0)))
+          .write(const SettingsRowsCompanion(lastSyncAt: Value(null)));
 }

@@ -60,11 +60,14 @@ class SyncRepository {
       }
 
       final settings = await _db.settingsDao.getSettings();
-      // Default to the plan start (or 30 days back) on the very first sync.
+      // On the very first sync, pull ~6 months of history so pre-plan runs form
+      // meaningful base stats; reach back to the plan start if it's older still.
+      final firstSyncFloor =
+          DateTime.now().subtract(const Duration(days: 180));
       final since = settings?.lastSyncAt ??
-          (plan.startDate.isBefore(DateTime.now())
+          (plan.startDate.isBefore(firstSyncFloor)
               ? plan.startDate
-              : DateTime.now().subtract(const Duration(days: 30)));
+              : firstSyncFloor);
 
       final sessions = await _health.fetchWorkouts(since: since);
 
@@ -75,7 +78,11 @@ class SyncRepository {
             await _db.runsDao.getCompletedByExternalId(session.externalId);
         if (existing != null) continue;
 
-        final plannedRunId = await _matchPlannedRun(plan.id, session.date);
+        // Only actual runs satisfy a planned run; walks/hikes are stored but
+        // never mark a scheduled run as completed.
+        final plannedRunId = session.activityType.isRun
+            ? await _matchPlannedRun(plan.id, session.date)
+            : null;
         await _db.transaction(() async {
           await _db.runsDao.insertCompletedRun(CompletedRunsCompanion(
             plannedRunId: Value(plannedRunId),
@@ -89,6 +96,7 @@ class SyncRepository {
             maxHr: Value(session.maxHr),
             calories: Value(session.calories),
             source: const Value(RunSource.healthConnect),
+            activityType: Value(session.activityType),
             externalId: Value(session.externalId),
           ));
           if (plannedRunId != null) {
@@ -98,8 +106,11 @@ class SyncRepository {
             );
           }
         });
-        added++;
-        totalKm += session.distanceKm;
+        // Report runs only — walks/hikes are imported silently.
+        if (session.activityType.isRun) {
+          added++;
+          totalKm += session.distanceKm;
+        }
       }
 
       final now = DateTime.now();

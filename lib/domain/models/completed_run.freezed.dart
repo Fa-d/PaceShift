@@ -16,7 +16,9 @@ mixin _$CompletedRun {
 
  int get id;/// Linked planned run, or null for an unplanned/extra run.
  int? get plannedRunId; DateTime get date; double get actualDistanceKm; int get durationSec;/// Average pace in seconds per km (computed at ingest).
- double get avgPaceSecPerKm; int? get avgHr; int? get maxHr; double? get calories; RunSource get source;/// Health Connect record id, used to dedup repeated syncs.
+ double get avgPaceSecPerKm; int? get avgHr; int? get maxHr; double? get calories; RunSource get source;/// What kind of activity this was. Defaults to [ActivityType.run] for
+/// manually entered runs and pre-`activityType` rows.
+ ActivityType get activityType;/// Health Connect record id, used to dedup repeated syncs.
  String? get externalId;
 /// Create a copy of CompletedRun
 /// with the given fields replaced by the non-null parameter values.
@@ -28,16 +30,16 @@ $CompletedRunCopyWith<CompletedRun> get copyWith => _$CompletedRunCopyWithImpl<C
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CompletedRun&&(identical(other.id, id) || other.id == id)&&(identical(other.plannedRunId, plannedRunId) || other.plannedRunId == plannedRunId)&&(identical(other.date, date) || other.date == date)&&(identical(other.actualDistanceKm, actualDistanceKm) || other.actualDistanceKm == actualDistanceKm)&&(identical(other.durationSec, durationSec) || other.durationSec == durationSec)&&(identical(other.avgPaceSecPerKm, avgPaceSecPerKm) || other.avgPaceSecPerKm == avgPaceSecPerKm)&&(identical(other.avgHr, avgHr) || other.avgHr == avgHr)&&(identical(other.maxHr, maxHr) || other.maxHr == maxHr)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.source, source) || other.source == source)&&(identical(other.externalId, externalId) || other.externalId == externalId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CompletedRun&&(identical(other.id, id) || other.id == id)&&(identical(other.plannedRunId, plannedRunId) || other.plannedRunId == plannedRunId)&&(identical(other.date, date) || other.date == date)&&(identical(other.actualDistanceKm, actualDistanceKm) || other.actualDistanceKm == actualDistanceKm)&&(identical(other.durationSec, durationSec) || other.durationSec == durationSec)&&(identical(other.avgPaceSecPerKm, avgPaceSecPerKm) || other.avgPaceSecPerKm == avgPaceSecPerKm)&&(identical(other.avgHr, avgHr) || other.avgHr == avgHr)&&(identical(other.maxHr, maxHr) || other.maxHr == maxHr)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.source, source) || other.source == source)&&(identical(other.activityType, activityType) || other.activityType == activityType)&&(identical(other.externalId, externalId) || other.externalId == externalId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,plannedRunId,date,actualDistanceKm,durationSec,avgPaceSecPerKm,avgHr,maxHr,calories,source,externalId);
+int get hashCode => Object.hash(runtimeType,id,plannedRunId,date,actualDistanceKm,durationSec,avgPaceSecPerKm,avgHr,maxHr,calories,source,activityType,externalId);
 
 @override
 String toString() {
-  return 'CompletedRun(id: $id, plannedRunId: $plannedRunId, date: $date, actualDistanceKm: $actualDistanceKm, durationSec: $durationSec, avgPaceSecPerKm: $avgPaceSecPerKm, avgHr: $avgHr, maxHr: $maxHr, calories: $calories, source: $source, externalId: $externalId)';
+  return 'CompletedRun(id: $id, plannedRunId: $plannedRunId, date: $date, actualDistanceKm: $actualDistanceKm, durationSec: $durationSec, avgPaceSecPerKm: $avgPaceSecPerKm, avgHr: $avgHr, maxHr: $maxHr, calories: $calories, source: $source, activityType: $activityType, externalId: $externalId)';
 }
 
 
@@ -48,7 +50,7 @@ abstract mixin class $CompletedRunCopyWith<$Res>  {
   factory $CompletedRunCopyWith(CompletedRun value, $Res Function(CompletedRun) _then) = _$CompletedRunCopyWithImpl;
 @useResult
 $Res call({
- int id, int? plannedRunId, DateTime date, double actualDistanceKm, int durationSec, double avgPaceSecPerKm, int? avgHr, int? maxHr, double? calories, RunSource source, String? externalId
+ int id, int? plannedRunId, DateTime date, double actualDistanceKm, int durationSec, double avgPaceSecPerKm, int? avgHr, int? maxHr, double? calories, RunSource source, ActivityType activityType, String? externalId
 });
 
 
@@ -65,7 +67,7 @@ class _$CompletedRunCopyWithImpl<$Res>
 
 /// Create a copy of CompletedRun
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? plannedRunId = freezed,Object? date = null,Object? actualDistanceKm = null,Object? durationSec = null,Object? avgPaceSecPerKm = null,Object? avgHr = freezed,Object? maxHr = freezed,Object? calories = freezed,Object? source = null,Object? externalId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? plannedRunId = freezed,Object? date = null,Object? actualDistanceKm = null,Object? durationSec = null,Object? avgPaceSecPerKm = null,Object? avgHr = freezed,Object? maxHr = freezed,Object? calories = freezed,Object? source = null,Object? activityType = null,Object? externalId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,plannedRunId: freezed == plannedRunId ? _self.plannedRunId : plannedRunId // ignore: cast_nullable_to_non_nullable
@@ -77,7 +79,8 @@ as double,avgHr: freezed == avgHr ? _self.avgHr : avgHr // ignore: cast_nullable
 as int?,maxHr: freezed == maxHr ? _self.maxHr : maxHr // ignore: cast_nullable_to_non_nullable
 as int?,calories: freezed == calories ? _self.calories : calories // ignore: cast_nullable_to_non_nullable
 as double?,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
-as RunSource,externalId: freezed == externalId ? _self.externalId : externalId // ignore: cast_nullable_to_non_nullable
+as RunSource,activityType: null == activityType ? _self.activityType : activityType // ignore: cast_nullable_to_non_nullable
+as ActivityType,externalId: freezed == externalId ? _self.externalId : externalId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -163,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  String? externalId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  ActivityType activityType,  String? externalId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CompletedRun() when $default != null:
-return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.externalId);case _:
+return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.activityType,_that.externalId);case _:
   return orElse();
 
 }
@@ -184,10 +187,10 @@ return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  String? externalId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  ActivityType activityType,  String? externalId)  $default,) {final _that = this;
 switch (_that) {
 case _CompletedRun():
-return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.externalId);case _:
+return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.activityType,_that.externalId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +207,10 @@ return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  String? externalId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  int? plannedRunId,  DateTime date,  double actualDistanceKm,  int durationSec,  double avgPaceSecPerKm,  int? avgHr,  int? maxHr,  double? calories,  RunSource source,  ActivityType activityType,  String? externalId)?  $default,) {final _that = this;
 switch (_that) {
 case _CompletedRun() when $default != null:
-return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.externalId);case _:
+return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_that.durationSec,_that.avgPaceSecPerKm,_that.avgHr,_that.maxHr,_that.calories,_that.source,_that.activityType,_that.externalId);case _:
   return null;
 
 }
@@ -219,7 +222,7 @@ return $default(_that.id,_that.plannedRunId,_that.date,_that.actualDistanceKm,_t
 
 
 class _CompletedRun extends CompletedRun {
-  const _CompletedRun({required this.id, this.plannedRunId, required this.date, required this.actualDistanceKm, required this.durationSec, required this.avgPaceSecPerKm, this.avgHr, this.maxHr, this.calories, required this.source, this.externalId}): super._();
+  const _CompletedRun({required this.id, this.plannedRunId, required this.date, required this.actualDistanceKm, required this.durationSec, required this.avgPaceSecPerKm, this.avgHr, this.maxHr, this.calories, required this.source, this.activityType = ActivityType.run, this.externalId}): super._();
   
 
 @override final  int id;
@@ -234,6 +237,9 @@ class _CompletedRun extends CompletedRun {
 @override final  int? maxHr;
 @override final  double? calories;
 @override final  RunSource source;
+/// What kind of activity this was. Defaults to [ActivityType.run] for
+/// manually entered runs and pre-`activityType` rows.
+@override@JsonKey() final  ActivityType activityType;
 /// Health Connect record id, used to dedup repeated syncs.
 @override final  String? externalId;
 
@@ -247,16 +253,16 @@ _$CompletedRunCopyWith<_CompletedRun> get copyWith => __$CompletedRunCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CompletedRun&&(identical(other.id, id) || other.id == id)&&(identical(other.plannedRunId, plannedRunId) || other.plannedRunId == plannedRunId)&&(identical(other.date, date) || other.date == date)&&(identical(other.actualDistanceKm, actualDistanceKm) || other.actualDistanceKm == actualDistanceKm)&&(identical(other.durationSec, durationSec) || other.durationSec == durationSec)&&(identical(other.avgPaceSecPerKm, avgPaceSecPerKm) || other.avgPaceSecPerKm == avgPaceSecPerKm)&&(identical(other.avgHr, avgHr) || other.avgHr == avgHr)&&(identical(other.maxHr, maxHr) || other.maxHr == maxHr)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.source, source) || other.source == source)&&(identical(other.externalId, externalId) || other.externalId == externalId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CompletedRun&&(identical(other.id, id) || other.id == id)&&(identical(other.plannedRunId, plannedRunId) || other.plannedRunId == plannedRunId)&&(identical(other.date, date) || other.date == date)&&(identical(other.actualDistanceKm, actualDistanceKm) || other.actualDistanceKm == actualDistanceKm)&&(identical(other.durationSec, durationSec) || other.durationSec == durationSec)&&(identical(other.avgPaceSecPerKm, avgPaceSecPerKm) || other.avgPaceSecPerKm == avgPaceSecPerKm)&&(identical(other.avgHr, avgHr) || other.avgHr == avgHr)&&(identical(other.maxHr, maxHr) || other.maxHr == maxHr)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.source, source) || other.source == source)&&(identical(other.activityType, activityType) || other.activityType == activityType)&&(identical(other.externalId, externalId) || other.externalId == externalId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,plannedRunId,date,actualDistanceKm,durationSec,avgPaceSecPerKm,avgHr,maxHr,calories,source,externalId);
+int get hashCode => Object.hash(runtimeType,id,plannedRunId,date,actualDistanceKm,durationSec,avgPaceSecPerKm,avgHr,maxHr,calories,source,activityType,externalId);
 
 @override
 String toString() {
-  return 'CompletedRun(id: $id, plannedRunId: $plannedRunId, date: $date, actualDistanceKm: $actualDistanceKm, durationSec: $durationSec, avgPaceSecPerKm: $avgPaceSecPerKm, avgHr: $avgHr, maxHr: $maxHr, calories: $calories, source: $source, externalId: $externalId)';
+  return 'CompletedRun(id: $id, plannedRunId: $plannedRunId, date: $date, actualDistanceKm: $actualDistanceKm, durationSec: $durationSec, avgPaceSecPerKm: $avgPaceSecPerKm, avgHr: $avgHr, maxHr: $maxHr, calories: $calories, source: $source, activityType: $activityType, externalId: $externalId)';
 }
 
 
@@ -267,7 +273,7 @@ abstract mixin class _$CompletedRunCopyWith<$Res> implements $CompletedRunCopyWi
   factory _$CompletedRunCopyWith(_CompletedRun value, $Res Function(_CompletedRun) _then) = __$CompletedRunCopyWithImpl;
 @override @useResult
 $Res call({
- int id, int? plannedRunId, DateTime date, double actualDistanceKm, int durationSec, double avgPaceSecPerKm, int? avgHr, int? maxHr, double? calories, RunSource source, String? externalId
+ int id, int? plannedRunId, DateTime date, double actualDistanceKm, int durationSec, double avgPaceSecPerKm, int? avgHr, int? maxHr, double? calories, RunSource source, ActivityType activityType, String? externalId
 });
 
 
@@ -284,7 +290,7 @@ class __$CompletedRunCopyWithImpl<$Res>
 
 /// Create a copy of CompletedRun
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? plannedRunId = freezed,Object? date = null,Object? actualDistanceKm = null,Object? durationSec = null,Object? avgPaceSecPerKm = null,Object? avgHr = freezed,Object? maxHr = freezed,Object? calories = freezed,Object? source = null,Object? externalId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? plannedRunId = freezed,Object? date = null,Object? actualDistanceKm = null,Object? durationSec = null,Object? avgPaceSecPerKm = null,Object? avgHr = freezed,Object? maxHr = freezed,Object? calories = freezed,Object? source = null,Object? activityType = null,Object? externalId = freezed,}) {
   return _then(_CompletedRun(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,plannedRunId: freezed == plannedRunId ? _self.plannedRunId : plannedRunId // ignore: cast_nullable_to_non_nullable
@@ -296,7 +302,8 @@ as double,avgHr: freezed == avgHr ? _self.avgHr : avgHr // ignore: cast_nullable
 as int?,maxHr: freezed == maxHr ? _self.maxHr : maxHr // ignore: cast_nullable_to_non_nullable
 as int?,calories: freezed == calories ? _self.calories : calories // ignore: cast_nullable_to_non_nullable
 as double?,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
-as RunSource,externalId: freezed == externalId ? _self.externalId : externalId // ignore: cast_nullable_to_non_nullable
+as RunSource,activityType: null == activityType ? _self.activityType : activityType // ignore: cast_nullable_to_non_nullable
+as ActivityType,externalId: freezed == externalId ? _self.externalId : externalId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

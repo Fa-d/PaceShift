@@ -4,27 +4,16 @@ import com.paceshift.Config
 import com.paceshift.auth.UserRepository
 import com.paceshift.auth.userId
 import com.paceshift.plugins.ApiException
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.headers
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
  * Generative-UI proxy (Phase 12 — commercialization). Instead of returning prose
- * like [AiService], this asks **GLM 5.2** (Zhipu/Z.ai, OpenAI-compatible) to
- * compose a **structured UI spec** — a flat, allow-listed list of [UiBlock]s that
- * the Flutter client renders natively (genui catalog).
+ * like [AiService], this asks **GLM** (Zhipu/Z.ai, OpenAI-compatible) to compose a
+ * **structured UI spec** — a flat, allow-listed list of [UiBlock]s that the Flutter
+ * client renders natively (genui catalog).
  *
  * The model only **arranges grounded facts** (the engine's RescheduleOutcome
  * changelog + the plan summary). The engine itself stays pure + client-side; the
@@ -32,16 +21,10 @@ import kotlinx.serialization.json.Json
  * allow-listed block types, so a malformed/creative response degrades to a clean,
  * safe subset rather than reaching the renderer raw.
  *
- * This is intentionally **separate** from the Claude path ([AiService]): the
- * existing `/ai/explain` + `/ai/chat` endpoints are unchanged.
+ * The GLM transport (key, timeouts, reasoning toggle) lives in [GlmClient], shared
+ * with [AiService].
  */
 object GenUiService {
-    private val http = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-    }
-
     /** Lenient parser for the model's JSON payload (it may add stray fields). */
     private val lenient = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -105,36 +88,15 @@ object GenUiService {
             appendLine()
             append("Compose a UI that answers helpfully, grounded in the facts above.")
         }
-        val raw = callGlm(systemPrompt, userTurn)
+        val raw = GlmClient.complete(
+            messages = listOf(
+                GlmMessage("system", systemPrompt),
+                GlmMessage("user", userTurn),
+            ),
+            maxTokens = 1200,
+            jsonObject = true,
+        )
         return parseSpec(raw)
-    }
-
-    private suspend fun callGlm(system: String, user: String): String {
-        val key = Config.glmApiKey
-            ?: throw ApiException(HttpStatusCode.ServiceUnavailable, "Generative UI is not configured")
-        val res = http.post("${Config.glmBaseUrl.trimEnd('/')}/chat/completions") {
-            headers { append("Authorization", "Bearer $key") }
-            contentType(ContentType.Application.Json)
-            setBody(
-                GlmRequest(
-                    model = Config.glmModel,
-                    messages = listOf(
-                        GlmMessage("system", system),
-                        GlmMessage("user", user),
-                    ),
-                    responseFormat = GlmResponseFormat("json_object"),
-                    temperature = 0.4,
-                    // GLM 4.5/5.2 are reasoning models: hidden reasoning tokens are
-                    // billed against max_tokens before the JSON, so leave headroom.
-                    maxTokens = 2000,
-                ),
-            )
-        }
-        if (!res.status.isSuccess()) {
-            throw ApiException(HttpStatusCode.BadGateway, "Generative UI request failed (${res.status.value})")
-        }
-        val body: GlmResponse = res.body()
-        return body.choices.firstOrNull()?.message?.content?.trim().orEmpty()
     }
 
     /**
@@ -165,12 +127,10 @@ object GenUiService {
     )
 }
 
-private fun HttpStatusCode.isSuccess() = value in 200..299
-
 /**
  * Guards the generative-UI call: requires a Pro entitlement and a configured GLM
- * key. Mirrors [requireAiAccess] but checks the GLM provider instead of Anthropic,
- * so the two AI paths can be configured independently.
+ * key. Mirrors [requireAiAccess]; both AI paths now use GLM, so the key check is
+ * the same — kept separate so the two surfaces can diverge later if needed.
  */
 fun requireGenUiAccess(call: ApplicationCall) {
     val user = UserRepository.findById(call.userId())
@@ -218,30 +178,3 @@ data class UiBlock(
     val style: String? = null,
     val confirm: Boolean? = null,
 )
-
-// ---- GLM wire models (OpenAI-compatible chat completions) ----
-
-@Serializable
-private data class GlmRequest(
-    val model: String,
-    val messages: List<GlmMessage>,
-    @SerialName("response_format") val responseFormat: GlmResponseFormat? = null,
-    val temperature: Double? = null,
-    @SerialName("max_tokens") val maxTokens: Int? = null,
-    val stream: Boolean = false,
-)
-
-@Serializable
-private data class GlmMessage(val role: String, val content: String)
-
-@Serializable
-private data class GlmResponseFormat(val type: String)
-
-@Serializable
-private data class GlmResponse(val choices: List<GlmChoice> = emptyList())
-
-@Serializable
-private data class GlmChoice(val message: GlmResponseMessage? = null)
-
-@Serializable
-private data class GlmResponseMessage(val content: String? = null)

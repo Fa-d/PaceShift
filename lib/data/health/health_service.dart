@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:health/health.dart';
 
+import '../../domain/fitness/effort_validity.dart';
+import '../../domain/models/enums.dart';
+
 /// A running/walking workout pulled from Health Connect, normalised for the app.
 class WorkoutSession {
   const WorkoutSession({
@@ -9,6 +12,7 @@ class WorkoutSession {
     required this.date,
     required this.distanceKm,
     required this.durationSec,
+    required this.activityType,
     this.avgHr,
     this.maxHr,
     this.calories,
@@ -18,6 +22,7 @@ class WorkoutSession {
   final DateTime date;
   final double distanceKm;
   final int durationSec;
+  final ActivityType activityType;
   final int? avgHr;
   final int? maxHr;
   final double? calories;
@@ -41,12 +46,14 @@ class HealthService {
     HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
 
-  static const _runningActivities = <HealthWorkoutActivityType>{
-    HealthWorkoutActivityType.RUNNING,
-    HealthWorkoutActivityType.RUNNING_TREADMILL,
-    HealthWorkoutActivityType.WALKING,
-    HealthWorkoutActivityType.WALKING_TREADMILL,
-    HealthWorkoutActivityType.HIKING,
+  /// Health Connect activity types we import, mapped to our [ActivityType].
+  /// Walks/hikes are stored but excluded from running stats downstream.
+  static const _trackedActivities = <HealthWorkoutActivityType, ActivityType>{
+    HealthWorkoutActivityType.RUNNING: ActivityType.run,
+    HealthWorkoutActivityType.RUNNING_TREADMILL: ActivityType.run,
+    HealthWorkoutActivityType.WALKING: ActivityType.walk,
+    HealthWorkoutActivityType.WALKING_TREADMILL: ActivityType.walk,
+    HealthWorkoutActivityType.HIKING: ActivityType.hike,
   };
 
   List<HealthDataAccess> get _readAccess =>
@@ -102,11 +109,18 @@ class HealthService {
     for (final p in workouts) {
       final value = p.value;
       if (value is! WorkoutHealthValue) continue;
-      if (!_runningActivities.contains(value.workoutActivityType)) continue;
+      final activityType = _trackedActivities[value.workoutActivityType];
+      if (activityType == null) continue;
 
+      // Health Connect reports workout distance in metres.
       final distanceKm = (value.totalDistance ?? 0) / 1000.0;
       final durationSec = p.dateTo.difference(p.dateFrom).inSeconds;
-      if (distanceKm <= 0 || durationSec <= 0) continue;
+      // Drop physically impossible records (GPS spikes, auto-paused sessions)
+      // before they pollute totals and the fitness estimate.
+      if (!isPhysicallyPlausibleEffort(
+          distanceKm: distanceKm, durationSec: durationSec)) {
+        continue;
+      }
 
       final hrs = hrPoints
           .where((h) =>
@@ -121,6 +135,7 @@ class HealthService {
         date: p.dateFrom,
         distanceKm: distanceKm,
         durationSec: durationSec,
+        activityType: activityType,
         avgHr: hrs.isEmpty ? null : (hrs.reduce((a, b) => a + b) / hrs.length).round(),
         maxHr: hrs.isEmpty ? null : hrs.reduce((a, b) => a > b ? a : b),
         calories: value.totalEnergyBurned?.toDouble(),

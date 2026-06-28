@@ -3,15 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/formatting.dart';
-import '../../data/api/cloud_sync_repository.dart';
+import '../../core/motion.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/enums.dart';
 import '../auth/sign_in_screen.dart';
 import '../providers/auth_providers.dart';
 import '../providers/providers.dart';
-import '../widgets/common.dart';
-import '../widgets/pro_gate.dart';
+import 'widgets/settings_section.dart';
 
+/// Settings hub: a lean top level with the account and the few common controls
+/// inline, and heavier groups (Training, Data & backup, About) on focused
+/// sub-pages. Styled as a flat grouped list (see [SettingsSection]).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -22,8 +24,9 @@ class SettingsScreen extends ConsumerWidget {
     final repo = ref.read(settingsRepositoryProvider);
 
     Future<void> pickTime(bool morning) async {
-      final mins =
-          morning ? settings.reminderMorningMinutes : settings.reminderEveningMinutes;
+      final mins = morning
+          ? settings.reminderMorningMinutes
+          : settings.reminderEveningMinutes;
       final picked = await showTimePicker(
         context: context,
         initialTime: TimeOfDay(hour: mins ~/ 60, minute: mins % 60),
@@ -42,160 +45,142 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             Text('Settings', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 12),
-            const SectionHeader('Account'),
-            const _AccountCard(),
-            const SizedBox(height: 8),
-            const SectionHeader('Watch & sync'),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.watch_rounded),
-                title: const Text('Health Connect'),
-                subtitle: const Text('Sync runs from your watch'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push('/sync'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const SectionHeader('Reminders'),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.wb_sunny_outlined),
-                    title: const Text('Morning reminder'),
-                    trailing:
-                        Text(formatMinutesOfDay(settings.reminderMorningMinutes)),
-                    onTap: () => pickTime(true),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.nightlight_outlined),
-                    title: const Text('Evening check-in'),
-                    trailing:
-                        Text(formatMinutesOfDay(settings.reminderEveningMinutes)),
-                    onTap: () => pickTime(false),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            const SectionHeader('Adaptivity'),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('How aggressively to redistribute missed runs',
-                        style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: 12),
-                    SegmentedButton<Aggressiveness>(
-                      segments: const [
-                        ButtonSegment(
-                            value: Aggressiveness.conservative,
-                            label: Text('Easy')),
-                        ButtonSegment(
-                            value: Aggressiveness.balanced,
-                            label: Text('Balanced')),
-                        ButtonSegment(
-                            value: Aggressiveness.aggressive,
-                            label: Text('Bold')),
-                      ],
-                      selected: {settings.adaptivityAggressiveness},
-                      onSelectionChanged: (s) => repo.update(
-                          settings.copyWith(adaptivityAggressiveness: s.first)),
+            const SizedBox(height: 20),
+            const _AccountSection(),
+            const SizedBox(height: 24),
+            SettingsSection(
+              title: 'Preferences',
+              children: [
+                SettingsTile(
+                  leading: Icons.straighten_rounded,
+                  title: 'Units',
+                  trailing: SegmentedButton<UnitSystem>(
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                  ],
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: UnitSystem.metric, label: Text('km')),
+                      ButtonSegment(value: UnitSystem.imperial, label: Text('mi')),
+                    ],
+                    selected: {settings.units},
+                    onSelectionChanged: (s) =>
+                        repo.update(settings.copyWith(units: s.first)),
+                  ),
                 ),
-              ),
+                SettingsTile(
+                  leading: Icons.wb_sunny_outlined,
+                  title: 'Morning reminder',
+                  trailing:
+                      Text(formatMinutesOfDay(settings.reminderMorningMinutes)),
+                  onTap: () => pickTime(true),
+                ),
+                SettingsTile(
+                  leading: Icons.nightlight_outlined,
+                  title: 'Evening check-in',
+                  trailing:
+                      Text(formatMinutesOfDay(settings.reminderEveningMinutes)),
+                  onTap: () => pickTime(false),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const SectionHeader('Units & catch-up'),
-            Card(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    secondary: const Icon(Icons.straighten_rounded),
-                    title: const Text('Metric (km)'),
-                    value: settings.units == UnitSystem.metric,
-                    onChanged: (v) => repo.update(settings.copyWith(
-                        units: v ? UnitSystem.metric : UnitSystem.imperial)),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.event_repeat_rounded),
-                    title: const Text('Catch-up window'),
-                    subtitle:
-                        Text('${settings.catchupWindowDays} days (long runs ${settings.longRunCatchupWindowDays})'),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 24),
+            SettingsSection(
+              title: 'More',
+              children: [
+                SettingsTile(
+                  leading: Icons.tune_rounded,
+                  title: 'Training & adaptivity',
+                  onTap: () => context.push('/settings/training'),
+                ),
+                SettingsTile(
+                  leading: Icons.cloud_outlined,
+                  title: 'Data & backup',
+                  onTap: () => context.push('/settings/data'),
+                ),
+                SettingsTile(
+                  leading: Icons.info_outline_rounded,
+                  title: 'About & legal',
+                  onTap: () => context.push('/settings/about'),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const SectionHeader('Cloud backup'),
-            const _CloudBackupCard(),
-            const SizedBox(height: 16),
-            Text(
-              'PaceShift is a training aid, not medical advice. Listen to your '
-              'body and consult a healthcare professional before starting or '
-              'changing a training program, or if you experience pain or injury.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
+          ].revealStagger(context),
         ),
       ),
     );
   }
 }
 
-/// Sign-in status / sign-out.
-class _AccountCard extends ConsumerWidget {
-  const _AccountCard();
+/// Sign-in status / sign-out / delete, as a flat grouped section.
+class _AccountSection extends ConsumerWidget {
+  const _AccountSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final user = ref.watch(currentUserProvider);
+
     if (user == null) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.login_rounded),
-          title: const Text('Sign in'),
-          subtitle: const Text('Back up & sync across devices'),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => showSignIn(context),
-        ),
-      );
-    }
-    return Card(
-      child: Column(
+      return SettingsSection(
+        title: 'Account',
         children: [
-          ListTile(
-            leading: CircleAvatar(
-              child: Text(
-                (user.displayName ?? user.email).characters.first.toUpperCase(),
-              ),
-            ),
-            title: Text(user.displayName ?? user.email),
-            subtitle: Text(user.proEntitled ? 'PaceShift Pro' : user.email),
-            trailing: TextButton(
-              onPressed: () =>
-                  ref.read(authControllerProvider.notifier).logout(),
-              child: const Text('Sign out'),
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.delete_outline_rounded,
-                color: Theme.of(context).colorScheme.error),
-            title: const Text('Delete account'),
-            subtitle: const Text('Permanently removes your account & cloud data'),
-            onTap: () => _confirmDelete(context, ref),
+          SettingsTile(
+            leading: Icons.login_rounded,
+            title: 'Sign in',
+            subtitle: 'Back up & sync across devices',
+            onTap: () => showSignIn(context),
           ),
         ],
-      ),
+      );
+    }
+
+    return SettingsSection(
+      title: 'Account',
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                child: Text(
+                  (user.displayName ?? user.email).characters.first.toUpperCase(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(user.displayName ?? user.email,
+                        style: theme.textTheme.bodyLarge),
+                    const SizedBox(height: 2),
+                    Text(
+                      user.proEntitled ? 'PaceShift Pro' : user.email,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(authControllerProvider.notifier).logout(),
+                child: const Text('Sign out'),
+              ),
+            ],
+          ),
+        ),
+        SettingsTile(
+          leading: Icons.delete_outline_rounded,
+          title: 'Delete account',
+          subtitle: 'Permanently removes your account & cloud data',
+          titleColor: theme.colorScheme.error,
+          onTap: () => _confirmDelete(context, ref),
+        ),
+      ],
     );
   }
 
@@ -224,78 +209,4 @@ class _AccountCard extends ConsumerWidget {
       await ref.read(authControllerProvider.notifier).deleteAccount();
     }
   }
-}
-
-/// Cloud backup / restore actions (requires sign-in).
-class _CloudBackupCard extends ConsumerStatefulWidget {
-  const _CloudBackupCard();
-
-  @override
-  ConsumerState<_CloudBackupCard> createState() => _CloudBackupCardState();
-}
-
-class _CloudBackupCardState extends ConsumerState<_CloudBackupCard> {
-  bool _busy = false;
-
-  Future<void> _do(Future<CloudSyncResult> Function() action, String okMsg) async {
-    if (!await ensurePro(context, ref)) return;
-    if (!mounted) return;
-    setState(() => _busy = true);
-    final result = await action();
-    if (!mounted) return;
-    setState(() => _busy = false);
-    final msg = switch (result.status) {
-      CloudSyncStatus.ok => okMsg,
-      CloudSyncStatus.conflict =>
-        'Server has newer data — pull first, then back up.',
-      CloudSyncStatus.notSignedIn => 'Sign in to use cloud backup.',
-      CloudSyncStatus.error => 'Sync failed. Try again.',
-    };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final signedIn = ref.watch(isSignedInProvider);
-    final repo = ref.read(cloudSyncRepositoryProvider);
-    if (!signedIn) {
-      return const Card(
-        child: ListTile(
-          leading: Icon(Icons.cloud_off_outlined),
-          title: Text('Not signed in'),
-          subtitle: Text('Sign in above to enable cloud backup'),
-        ),
-      );
-    }
-    return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.cloud_upload_outlined),
-            title: const Text('Back up now'),
-            subtitle: const Text('Upload your plan & history'),
-            trailing: _busy ? const _MiniSpinner() : null,
-            onTap: _busy
-                ? null
-                : () => _do(repo.push, 'Backed up to the cloud.'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.cloud_download_outlined),
-            title: const Text('Restore from cloud'),
-            subtitle: const Text('Replace local data with your backup'),
-            trailing: _busy ? const _MiniSpinner() : null,
-            onTap: _busy ? null : () => _do(repo.pull, 'Restored from the cloud.'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniSpinner extends StatelessWidget {
-  const _MiniSpinner();
-  @override
-  Widget build(BuildContext context) => const SizedBox(
-      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2));
 }

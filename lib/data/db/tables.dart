@@ -54,6 +54,11 @@ class CompletedRuns extends Table {
   RealColumn get calories => real().nullable()();
   TextColumn get source => textEnum<RunSource>()();
 
+  /// The physical activity (run/walk/hike). Only runs count toward running
+  /// stats; defaults to `run` for manual entries and pre-migration rows.
+  TextColumn get activityType =>
+      textEnum<ActivityType>().withDefault(const Constant('run'))();
+
   /// Health Connect record id, for dedup. Unique when present.
   TextColumn get externalId => text().nullable()();
 }
@@ -69,6 +74,9 @@ class SettingsRows extends Table {
   IntColumn get catchupWindowDays => integer()();
   IntColumn get longRunCatchupWindowDays => integer()();
   BoolColumn get cloudBackupEnabled => boolean()();
+
+  /// Display name captured during onboarding (empty string = not provided).
+  TextColumn get userName => text().withDefault(const Constant(''))();
 
   /// Last successful Health Connect sync (null until first sync).
   DateTimeColumn get lastSyncAt => dateTime().nullable()();

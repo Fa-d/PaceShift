@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatting.dart';
+import '../../core/motion.dart';
 import '../../data/repositories/sync_repository.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
@@ -18,6 +20,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   bool _syncing = false;
 
   Future<void> _syncNow() async {
+    if (AppMotion.on(context)) HapticFeedback.lightImpact();
     setState(() => _syncing = true);
     final result = await ref.read(syncRepositoryProvider).syncNow();
     ref.invalidate(lastSyncProvider);
@@ -131,7 +134,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           const SizedBox(height: 24),
           const SectionHeader('How it works'),
           const _SetupGuide(),
-        ],
+        ].revealStagger(context),
       ),
     );
   }
@@ -198,7 +201,7 @@ class _SetupGuide extends StatelessWidget {
                   ],
                 ),
               ),
-          ],
+          ].revealStagger(context),
         ),
       ),
     );

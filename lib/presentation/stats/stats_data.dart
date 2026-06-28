@@ -49,6 +49,16 @@ class StatsData {
   bool get isEmpty => weeklyVolumes.isEmpty;
 }
 
+/// The 1-based training week the [date] falls in, relative to [planStart].
+///
+/// Pure + testable. Dates before the plan start return week 0, -1, … so
+/// pre-plan (base-building) history spreads across real weeks instead of
+/// collapsing into week 1.
+int weekOffset(DateTime planStart, DateTime date) {
+  final days = daysBetween(planStart, date);
+  return (days / 7).floor() + 1;
+}
+
 /// Derives [StatsData] from the active plan, planned runs and completed runs.
 final statsProvider = Provider<StatsData>((ref) {
   final plan = ref.watch(activePlanProvider).value;
@@ -64,8 +74,11 @@ final statsProvider = Provider<StatsData>((ref) {
     );
   }
 
+  // Only runs count toward running stats; walks/hikes are stored but excluded.
+  final completedRuns = completed.where((c) => c.isRun).toList();
+
   final completedByPlanned = {
-    for (final c in completed)
+    for (final c in completedRuns)
       if (c.plannedRunId != null) c.plannedRunId!: c,
   };
 
@@ -81,18 +94,13 @@ final statsProvider = Provider<StatsData>((ref) {
   }
 
   // Weekly completed volume (by the week the planned run lives in; falls back to
-  // calendar week for unplanned runs).
+  // the run's actual training week for unplanned/pre-plan runs).
   final completedByWeek = <int, double>{};
-  int weekOfDate(DateTime d) {
-    final days = daysBetween(plan.startDate, d);
-    return days < 0 ? 1 : (days ~/ 7) + 1;
-  }
-
   final runById = {for (final r in runs) r.id: r};
-  for (final c in completed) {
+  for (final c in completedRuns) {
     final week = c.plannedRunId != null && runById.containsKey(c.plannedRunId)
         ? runById[c.plannedRunId]!.weekIndex
-        : weekOfDate(c.date);
+        : weekOffset(plan.startDate, c.date);
     completedByWeek[week] = (completedByWeek[week] ?? 0) + c.actualDistanceKm;
   }
 
@@ -137,9 +145,9 @@ final statsProvider = Provider<StatsData>((ref) {
   }
 
   final totalCompletedKm =
-      completed.fold<double>(0, (s, c) => s + c.actualDistanceKm);
-  final longestRunKm =
-      completed.fold<double>(0, (m, c) => c.actualDistanceKm > m ? c.actualDistanceKm : m);
+      completedRuns.fold<double>(0, (s, c) => s + c.actualDistanceKm);
+  final longestRunKm = completedRuns.fold<double>(
+      0, (m, c) => c.actualDistanceKm > m ? c.actualDistanceKm : m);
 
   return StatsData(
     weeklyVolumes: weeklyVolumes,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/motion.dart';
 import '../../data/api/social_auth.dart';
@@ -88,6 +89,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 20),
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/brand/paceshift_mark.svg',
+                    width: 72,
+                    height: 72,
+                  ),
+                ),
+              ),
               Text(
                 _isRegister ? 'Join PaceShift' : 'Welcome back',
                 style: theme.textTheme.headlineSmall

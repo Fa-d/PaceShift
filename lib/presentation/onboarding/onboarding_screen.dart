@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/formatting.dart';
 import '../../core/theme.dart';
@@ -313,14 +314,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: <Widget>[
           const Spacer(flex: 2),
           Container(
-            width: 88,
-            height: 88,
+            width: 96,
+            height: 96,
             decoration: BoxDecoration(
-              color: AppTheme.ember.withValues(alpha: 0.15),
+              color: AppTheme.slate,
               borderRadius: BorderRadius.circular(26),
             ),
-            child: const Icon(Icons.directions_run_rounded,
-                color: AppTheme.ember, size: 48),
+            alignment: Alignment.center,
+            child: SvgPicture.asset(
+              'assets/brand/paceshift_mark.svg',
+              width: 60,
+              height: 60,
+            ),
           ),
           const SizedBox(height: 28),
           Text('PaceShift', style: theme.textTheme.displaySmall),

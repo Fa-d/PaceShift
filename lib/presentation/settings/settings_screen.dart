@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/design.dart';
 
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
@@ -42,12 +43,12 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: Space.screenPadding,
           children: [
             Text('Settings', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 20),
+            const SizedBox(height: Space.xl),
             const _AccountSection(),
-            const SizedBox(height: 24),
+            const SizedBox(height: Space.xl),
             SettingsSection(
               title: 'Preferences',
               children: [
@@ -85,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Space.xl),
             SettingsSection(
               title: 'More',
               children: [
@@ -140,7 +141,8 @@ class _AccountSection extends ConsumerWidget {
       title: 'Account',
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Space.lg, vertical: Space.md),
           child: Row(
             children: [
               CircleAvatar(
@@ -148,7 +150,7 @@ class _AccountSection extends ConsumerWidget {
                   (user.displayName ?? user.email).characters.first.toUpperCase(),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: Space.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +158,7 @@ class _AccountSection extends ConsumerWidget {
                   children: [
                     Text(user.displayName ?? user.email,
                         style: theme.textTheme.bodyLarge),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: Space.xs),
                     Text(
                       user.proEntitled ? 'PaceShift Pro' : user.email,
                       style: theme.textTheme.bodySmall

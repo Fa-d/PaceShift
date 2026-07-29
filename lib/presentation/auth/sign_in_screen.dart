@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/design.dart';
+import '../../core/errors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/motion.dart';
@@ -41,7 +43,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await action();
       if (mounted && ref.read(isSignedInProvider)) Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      // Never `'$e'`: a DioException's toString carries the API URL, the
+      // status line and headers, and it was rendered to the user in red.
+      if (mounted) {
+        setState(() => _error = friendlyError(e,
+            fallback: 'We couldn’t sign you in. Check your details and '
+                'try again.'));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -87,10 +95,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            padding: const EdgeInsets.fromLTRB(
+                Space.screenH, Space.lg, Space.screenH, Space.screenBottom),
             children: [
               Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 20),
+                padding: const EdgeInsets.only(top: Space.sm, bottom: Space.xl),
                 child: Center(
                   child: SvgPicture.asset(
                     'assets/brand/paceshift_mark.svg',
@@ -102,18 +111,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               Text(
                 _isRegister ? 'Join PaceShift' : 'Welcome back',
                 style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: Space.xs),
               Text(
                 'Sync your plan across devices and back it up safely.',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Space.xl),
               if (_isRegister)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: Space.md),
                   child: TextFormField(
                     controller: _name,
                     textInputAction: TextInputAction.next,
@@ -132,7 +141,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ? 'Enter a valid email'
                     : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Space.md),
               TextFormField(
                 controller: _password,
                 obscureText: true,
@@ -143,11 +152,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     : null,
               ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.md),
                 Text(_error!,
                     style: TextStyle(color: theme.colorScheme.error)),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: Space.xl),
               FilledButton(
                 onPressed: _busy ? null : _submit,
                 child: _busy
@@ -157,7 +166,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : Text(_isRegister ? 'Create account' : 'Sign in'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.sm),
               TextButton(
                 onPressed: _busy
                     ? null
@@ -166,28 +175,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ? 'Have an account? Sign in'
                     : 'New here? Create an account'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.sm),
               Row(children: [
                 const Expanded(child: Divider()),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: Space.md),
                   child: Text('or', style: theme.textTheme.bodySmall),
                 ),
                 const Expanded(child: Divider()),
               ]),
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.sm),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _google,
                 icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
                 label: const Text('Continue with Google'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: Space.sm),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _apple,
                 icon: const Icon(Icons.apple_rounded),
                 label: const Text('Continue with Apple'),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.lg),
               Text(
                 'You can keep using PaceShift without an account — signing in '
                 'just adds cloud backup and multi-device sync.',

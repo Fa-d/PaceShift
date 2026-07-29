@@ -2,6 +2,7 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/models/enums.dart';
+import '../domain/readiness/readiness_scorer.dart';
 import 'design.dart';
 
 /// PaceShift visual identity.
@@ -184,6 +185,22 @@ class RunPalette {
       case RunType.rest:
         return Icons.bedtime_rounded;
     }
+  }
+}
+
+/// Colour for a readiness band.
+///
+/// Shares the semantic ramp with [statusColor], so "on track" readiness and a
+/// completed run are the *same* green. The dial, the Today glance and the
+/// stats screen each used to carry their own copy of these hexes.
+Color readinessColor(ReadinessBand band, ColorScheme scheme) {
+  switch (band) {
+    case ReadinessBand.onTrack:
+      return scheme.success;
+    case ReadinessBand.slightlyBehind:
+      return scheme.warning;
+    case ReadinessBand.atRisk:
+      return scheme.danger;
   }
 }
 

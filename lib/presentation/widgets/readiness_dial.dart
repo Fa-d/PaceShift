@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/motion.dart';
+import '../../core/theme.dart';
 import '../../domain/readiness/readiness_scorer.dart';
 
 /// A circular 0–100 readiness dial with the score and plain-language band.
@@ -15,12 +17,6 @@ class ReadinessDial extends StatelessWidget {
 
   final ReadinessScore readiness;
   final double size;
-
-  Color _bandColor(ColorScheme scheme) => switch (readiness.band) {
-        ReadinessBand.onTrack => const Color(0xFF2BB673),
-        ReadinessBand.slightlyBehind => const Color(0xFFE0A800),
-        ReadinessBand.atRisk => scheme.error,
-      };
 
   Widget _dial(ThemeData theme, Color color, double progress, int score) {
     return SizedBox(
@@ -37,12 +33,10 @@ class ReadinessDial extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('$score',
-                  style: theme.textTheme.displaySmall
-                      ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                  style: theme.textTheme.displaySmall?.copyWith(color: color)),
               Text(readiness.label,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: color, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
+                  style: theme.textTheme.titleSmall?.copyWith(color: color)),
+              const SizedBox(height: Space.xs),
               Text('readiness',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -56,7 +50,7 @@ class ReadinessDial extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = _bandColor(theme.colorScheme);
+    final color = readinessColor(readiness.band, theme.colorScheme);
     final target = readiness.score / 100;
     if (!AppMotion.on(context)) {
       return _dial(theme, color, target, readiness.score);

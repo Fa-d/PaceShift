@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/formatting.dart';
+import '../../core/design.dart';
 import '../../core/motion.dart';
 import '../../domain/engine/reschedule_outcome.dart';
 
@@ -88,7 +89,8 @@ class DegradeDecisionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+          Space.screenH, Space.xs, Space.screenH, Space.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,28 +98,27 @@ class DegradeDecisionSheet extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.sm),
               Expanded(
                 child: Text('Your plan needs a decision',
                     style: theme.textTheme.titleLarge),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: Space.sm),
           Text(
             'There isn’t a safe way to fit everything in the time left. Choose '
             'how you’d like to adapt — PaceShift won’t build unsafe weeks.',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.lg),
           ...options.map(
             (o) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: Space.sm),
               child: Card(
                 child: ListTile(
-                  title: Text(o.title,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text(o.title, style: theme.textTheme.titleSmall),
                   subtitle: Text(o.description),
                   onTap: () => Navigator.of(context).pop(o.kind),
                 ),

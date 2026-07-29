@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/design.dart';
 
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/enums.dart';
@@ -20,13 +21,14 @@ class TrainingSettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Training')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+            Space.screenH, Space.md, Space.screenH, Space.screenBottom),
         children: [
           SettingsSection(
             title: 'Adaptivity',
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Space.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -34,7 +36,7 @@ class TrainingSettingsScreen extends ConsumerWidget {
                       'How aggressively to redistribute missed runs.',
                       style: theme.textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: Space.md),
                     SegmentedButton<Aggressiveness>(
                       segments: const [
                         ButtonSegment(
@@ -56,7 +58,7 @@ class TrainingSettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Space.xl),
           SettingsSection(
             title: 'Catch-up windows',
             children: [

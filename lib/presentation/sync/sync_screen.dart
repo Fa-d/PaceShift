@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
 import '../../data/repositories/sync_repository.dart';
@@ -62,56 +63,53 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Sync')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+            Space.screenH, Space.sm, Space.screenH, Space.screenBottom),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.watch_rounded, color: theme.colorScheme.primary),
-                      const SizedBox(width: 10),
-                      Text(sync.providerName, style: theme.textTheme.titleLarge),
-                    ],
+          QuietSurface(
+            padding: const EdgeInsets.all(Space.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.watch_rounded, color: theme.colorScheme.primary),
+                    const SizedBox(width: Space.md),
+                    Text(sync.providerName, style: theme.textTheme.titleLarge),
+                  ],
+                ),
+                const SizedBox(height: Space.lg),
+                available.when(
+                  loading: () => const _StatusRow(
+                      label: 'Checking availability…', ok: null),
+                  error: (e, st) =>
+                      const _StatusRow(label: 'Unavailable', ok: false),
+                  data: (ok) => _StatusRow(
+                    label: ok ? 'Connected & available' : 'Not available',
+                    ok: ok,
                   ),
-                  const SizedBox(height: 16),
-                  available.when(
-                    loading: () => const _StatusRow(
-                        label: 'Checking availability…', ok: null),
-                    error: (e, st) =>
-                        const _StatusRow(label: 'Unavailable', ok: false),
-                    data: (ok) => _StatusRow(
-                      label: ok ? 'Connected & available' : 'Not available',
-                      ok: ok,
+                ),
+                const Divider(height: Space.xxl),
+                Row(
+                  children: [
+                    Icon(Icons.history_rounded,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: Space.md),
+                    Text('Last sync', style: theme.textTheme.bodyMedium),
+                    const Spacer(),
+                    Text(
+                      lastSync == null
+                          ? 'Never'
+                          : '${formatDateLabel(lastSync)}, '
+                              '${formatMinutesOfDay(lastSync.hour * 60 + lastSync.minute)}',
+                      style: theme.textTheme.titleSmall,
                     ),
-                  ),
-                  const Divider(height: 28),
-                  Row(
-                    children: [
-                      Icon(Icons.history_rounded,
-                          size: 20, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 10),
-                      Text('Last sync',
-                          style: theme.textTheme.bodyMedium),
-                      const Spacer(),
-                      Text(
-                        lastSync == null
-                            ? 'Never'
-                            : '${formatDateLabel(lastSync)}, '
-                                '${formatMinutesOfDay(lastSync.hour * 60 + lastSync.minute)}',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.lg),
           FilledButton.icon(
             onPressed: _syncing ? null : _syncNow,
             icon: _syncing
@@ -122,7 +120,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                 : const Icon(Icons.sync_rounded),
             label: Text(_syncing ? 'Syncing…' : 'Sync now'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.sm),
           // Nothing to install on iOS — HealthKit ships with the OS.
           if (available.value == false && sync.canInstallProvider)
             OutlinedButton.icon(
@@ -131,7 +129,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
               icon: const Icon(Icons.download_rounded),
               label: const Text('Install Health Connect'),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Space.xl),
           const SectionHeader('How it works'),
           _SetupGuide(canInstallProvider: sync.canInstallProvider),
         ].revealStagger(context),
@@ -148,10 +146,10 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = ok == null
-        ? scheme.outline
-        : (ok! ? const Color(0xFF2BB673) : scheme.error);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color =
+        ok == null ? scheme.outline : (ok! ? scheme.success : scheme.danger);
     return Row(
       children: [
         Icon(
@@ -161,9 +159,8 @@ class _StatusRow extends StatelessWidget {
           color: color,
           size: 20,
         ),
-        const SizedBox(width: 10),
-        Text(label,
-            style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+        const SizedBox(width: Space.md),
+        Text(label, style: theme.textTheme.titleSmall?.copyWith(color: color)),
       ],
     );
   }
@@ -189,29 +186,26 @@ class _SetupGuide extends StatelessWidget {
             'Open the Health app → Sharing → Apps, and allow PaceShift to read workouts.',
             'New runs then appear on their own — no logging needed.',
           ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            for (var i = 0; i < steps.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 12,
-                      child: Text('${i + 1}',
-                          style: const TextStyle(fontSize: 12)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(steps[i])),
-                  ],
-                ),
+    return QuietSurface(
+      child: Column(
+        children: [
+          for (var i = 0; i < steps.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.sm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: Space.md,
+                    child: Text('${i + 1}',
+                        style: Theme.of(context).textTheme.labelSmall),
+                  ),
+                  const SizedBox(width: Space.md),
+                  Expanded(child: Text(steps[i])),
+                ],
               ),
-          ].revealStagger(context),
-        ),
+            ),
+        ].revealStagger(context),
       ),
     );
   }

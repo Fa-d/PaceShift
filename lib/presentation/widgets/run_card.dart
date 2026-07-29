@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../domain/models/planned_run.dart';
 import 'common.dart';
@@ -19,14 +20,14 @@ class RunCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Space.lg),
           child: Row(
             children: [
               Hero(
                 tag: 'run-badge-${run.id}',
                 child: RunTypeBadge(type: run.type),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: Space.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,28 +35,27 @@ class RunCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(runTypeLabel(run.type),
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(width: 8),
+                            style: theme.textTheme.titleMedium),
+                        const SizedBox(width: Space.sm),
                         if (run.type.isRun && run.targetDistanceKm != null)
                           Text(formatKm(run.targetDistanceKm),
                               style: theme.textTheme.titleMedium?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant)),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: Space.xs),
                     Text(formatDateLabel(run.scheduledDate),
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant)),
                     if (run.wasShifted) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Space.xs),
                       ShiftBanner(
                           from: run.originalDate, to: run.scheduledDate),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.sm),
               trailing ?? StatusChip(status: run.status),
             ],
           ),

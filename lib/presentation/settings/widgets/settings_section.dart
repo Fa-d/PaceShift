@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design.dart';
+
 /// Flat grouped-list primitives for Settings (hub + sub-pages).
 ///
 /// The look: a small-caps label above a single rounded container whose rows are
@@ -23,20 +25,18 @@ class SettingsSection extends StatelessWidget {
       children: [
         if (title != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+                Space.lg, 0, Space.lg, Space.sm),
             child: Text(
               title!.toUpperCase(),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-              ),
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
         DecoratedBox(
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: AppRadius.lgAll,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -46,8 +46,8 @@ class SettingsSection extends StatelessWidget {
                   Divider(
                     height: 1,
                     thickness: 1,
-                    indent: 16,
-                    endIndent: 16,
+                    indent: Space.lg,
+                    endIndent: Space.lg,
                     color: scheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 children[i],
@@ -96,14 +96,15 @@ class SettingsTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: AppRadius.lgAll,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Space.lg, vertical: Space.md),
         child: Row(
           children: [
             if (leading != null) ...[
               Icon(leading, color: titleColor ?? scheme.onSurfaceVariant, size: 22),
-              const SizedBox(width: 16),
+              const SizedBox(width: Space.lg),
             ],
             Expanded(
               child: Column(
@@ -115,7 +116,7 @@ class SettingsTile extends StatelessWidget {
                     style: theme.textTheme.bodyLarge?.copyWith(color: titleColor),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: Space.xs),
                     Text(
                       subtitle!,
                       style: theme.textTheme.bodySmall
@@ -126,7 +127,7 @@ class SettingsTile extends StatelessWidget {
               ),
             ),
             if (effectiveTrailing != null) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: Space.md),
               DefaultTextStyle.merge(
                 style: theme.textTheme.bodyMedium
                         ?.copyWith(color: scheme.onSurfaceVariant) ??

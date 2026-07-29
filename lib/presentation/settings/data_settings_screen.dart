@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/design.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/api/cloud_sync_repository.dart';
@@ -45,7 +46,8 @@ class _DataSettingsScreenState extends ConsumerState<DataSettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Data & backup')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+            Space.screenH, Space.md, Space.screenH, Space.screenBottom),
         children: [
           SettingsSection(
             title: 'Watch',
@@ -58,7 +60,7 @@ class _DataSettingsScreenState extends ConsumerState<DataSettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Space.xl),
           SettingsSection(
             title: 'Cloud backup',
             children: signedIn

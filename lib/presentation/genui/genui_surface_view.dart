@@ -209,7 +209,7 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
         Flexible(
           child: _surfaceIds.isEmpty && !_busy
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: const EdgeInsets.symmetric(vertical: Space.xl),
                   child: Text(
                     widget.emptyHint,
                     textAlign: TextAlign.center,
@@ -224,7 +224,7 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
                     final id = _surfaceIds[i];
                     final ctx = _contexts[id] ??= _controller.contextFor(id);
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: Space.xs),
                       child: Surface(surfaceContext: ctx),
                     );
                   },
@@ -232,11 +232,11 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
         ),
         if (_busy)
           const Padding(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.all(Space.sm),
             child: LinearProgressIndicator(),
           ),
         if (widget.showInput) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.sm),
           Row(
             children: [
               Expanded(

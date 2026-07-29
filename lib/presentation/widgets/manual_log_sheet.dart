@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design.dart';
+import '../../core/errors.dart';
 import '../../core/formatting.dart';
 import '../../domain/models/planned_run.dart';
 import '../providers/providers.dart';
 import 'celebration.dart';
+import 'common.dart';
 
 /// Bottom sheet to log a run — either completing a [plannedRun] or recording an
 /// extra/unplanned run. The manual fallback that's always available (spec §6).
@@ -35,6 +38,7 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
   final _maxHr = TextEditingController();
   final _notes = TextEditingController();
   bool _saving = false;
+  String? _error;
 
   @override
   void initState() {
@@ -59,7 +63,10 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     final repo = ref.read(runRepositoryProvider);
     final dist = double.parse(_distance.text.trim());
     final durSec = ((double.tryParse(_minutes.text.trim()) ?? 0) * 60).round();
@@ -95,6 +102,13 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
         Celebrate.burst(context);
         Navigator.of(context).pop();
       }
+    } catch (e) {
+      // Without this the write could fail silently and the athlete would have
+      // no idea whether their run was recorded.
+      if (mounted) {
+        setState(() => _error =
+            friendlyError(e, fallback: 'We couldn’t save that run.'));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -106,10 +120,10 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
     final theme = Theme.of(context);
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 4,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: Space.screenH,
+        right: Space.screenH,
+        top: Space.xs,
+        bottom: MediaQuery.of(context).viewInsets.bottom + Space.screenH,
       ),
       child: Form(
         key: _formKey,
@@ -123,7 +137,7 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                   : 'Log an extra run',
               style: theme.textTheme.titleLarge,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Space.lg),
             Row(
               children: [
                 Expanded(
@@ -140,7 +154,7 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Space.md),
                 Expanded(
                   child: TextFormField(
                     controller: _minutes,
@@ -157,7 +171,7 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.md),
             Row(
               children: [
                 Expanded(
@@ -169,7 +183,7 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                         labelText: 'Avg HR', prefixIcon: Icon(Icons.favorite_outline)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Space.md),
                 Expanded(
                   child: TextFormField(
                     controller: _maxHr,
@@ -180,14 +194,18 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.md),
             TextFormField(
               controller: _notes,
               decoration: const InputDecoration(
                   labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes)),
               maxLines: 2,
             ),
-            const SizedBox(height: 20),
+            if (_error != null) ...[
+              const SizedBox(height: Space.md),
+              SurfaceError(message: _error!, compact: true, onRetry: _save),
+            ],
+            const SizedBox(height: Space.xl),
             FilledButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving

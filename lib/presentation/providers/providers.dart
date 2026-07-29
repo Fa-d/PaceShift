@@ -8,6 +8,7 @@ import '../../data/health/health_service.dart';
 import '../../data/repositories/scheduler_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/sync_repository.dart';
+import '../../domain/engine/reschedule_outcome.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/completed_run.dart';
 import '../../domain/models/enums.dart';
@@ -123,12 +124,13 @@ Future<SyncResult> syncAndSettle({
   required SchedulerRepository scheduler,
   SyncTrigger trigger = SyncTrigger.manual,
   bool onlyIfStale = false,
+  void Function(RescheduleOutcome?)? onAdjustment,
 }) async {
   final result = onlyIfStale
       ? await sync.syncIfStale()
       : await sync.syncNow(trigger: trigger);
   if (result.recoveredMissedRun) {
-    await scheduler.runDayRollover();
+    onAdjustment?.call(await scheduler.runDayRollover());
   }
   return result;
 }

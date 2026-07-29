@@ -28,7 +28,7 @@ Future<void> main() async {
   // Catch any runs missed while the app was closed. The foreground sync that
   // runs once the UI is up (see `PaceShiftApp._bootstrap`) can still recover a
   // run this pass writes off, and re-runs the rollover when it does.
-  await SchedulerRepository(db).runDayRollover();
+  final launchAdjustment = await SchedulerRepository(db).runDayRollover();
 
   // Notifications + background polling (best effort — never block startup).
   final notifications = NotificationService();
@@ -57,7 +57,10 @@ Future<void> main() async {
         notificationServiceProvider.overrideWithValue(notifications),
         subscriptionServiceProvider.overrideWithValue(subscriptions),
       ],
-      child: const PaceShiftApp(),
+      // The rollover above can move, shorten or drop runs while the app is
+      // closed. Handing the outcome to the UI is what lets the athlete find
+      // out; it used to be discarded here.
+      child: PaceShiftApp(launchAdjustment: launchAdjustment),
     ),
   );
 }

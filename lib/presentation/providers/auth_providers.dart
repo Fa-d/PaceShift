@@ -57,9 +57,22 @@ class AuthController extends AsyncNotifier<AuthUser?> {
     state = const AsyncData(null);
   }
 
-  Future<void> deleteAccount() async {
-    await _repo.deleteAccount();
-    state = const AsyncData(null);
+  /// Deletes the account server-side, then signs out.
+  ///
+  /// Returns true on success. Previously this set `AsyncData(null)`
+  /// unconditionally, so a server-side deletion that failed still signed the
+  /// user out and looked identical to one that worked — the account survived
+  /// and the athlete believed it was gone.
+  Future<bool> deleteAccount() async {
+    state = const AsyncLoading();
+    try {
+      await _repo.deleteAccount();
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
   }
 }
 

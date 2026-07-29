@@ -3,18 +3,21 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design.dart';
+import '../../core/formatting.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
 
-/// One-time "connect your health data" step, shown straight after the plan is
-/// generated (spec: automatic capture).
+/// The full pitch for automatic run capture.
 ///
-/// Deliberately *after* onboarding rather than inside it: asking for a sensitive
-/// permission before the user has seen their plan converts badly. By this point
-/// they have something concrete to attach the value to.
+/// This used to be a forced redirect the instant a plan existed — the first
+/// thing a new athlete saw after eight onboarding questions was a screen
+/// headed "Your plan is ready" that showed them none of their plan and asked
+/// for a sensitive health permission instead. It is now reached on purpose,
+/// from the Today attention queue, by someone who has seen what the app does
+/// and wants it to keep itself up to date.
 ///
-/// Every exit path stamps `healthPromptedAt`, so this screen is asked once and
-/// never nags again — if it's declined, a card on Today carries the offer.
+/// Every exit path stamps `healthPromptedAt`, which quiets the offer for a
+/// fortnight.
 class ConnectHealthScreen extends ConsumerStatefulWidget {
   const ConnectHealthScreen({super.key});
 
@@ -26,33 +29,44 @@ class ConnectHealthScreen extends ConsumerStatefulWidget {
 class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
   bool _busy = false;
 
-  /// Stamping `healthPromptedAt` is what releases the router's connect gate and
-  /// moves us to Today — navigating by hand instead would race the settings
-  /// stream and bounce the user straight back here.
-  Future<void> _dismiss() =>
-      ref.read(settingsRepositoryProvider).markHealthPrompted();
+  /// Records that we asked (which quiets the offer on Today) and closes.
+  Future<void> _dismiss() async {
+    await ref.read(settingsRepositoryProvider).markHealthPrompted();
+    if (mounted) Navigator.of(context).maybePop();
+  }
 
   Future<void> _connect() async {
     setState(() => _busy = true);
-    // Grab the messenger up front: the gate releases the moment we stamp, and
-    // this screen's context is gone by then.
+    // Grab the messenger up front: this screen closes before we report back.
     final messenger = ScaffoldMessenger.of(context);
+    final units = ref.read(unitsProvider);
     try {
       // No explicit permission request needed — a manual sync raises the
       // platform prompt itself, on both Health Connect and HealthKit.
       final result = await syncAndSettle(
         sync: ref.read(syncRepositoryProvider),
         scheduler: ref.read(schedulerRepositoryProvider),
+        onAdjustment: ref.read(recentAdjustmentProvider.notifier).record,
       );
-      if (result.isSuccess && result.newRuns > 0) {
-        messenger.showSnackBar(SnackBar(
-          content: Text('Imported ${result.newRuns} '
-              'run${result.newRuns == 1 ? '' : 's'} — '
-              '${result.totalKm.toStringAsFixed(1)} km.'),
-        ));
-      }
+      // Always say something. Success with zero new runs used to produce no
+      // feedback at all — the screen simply vanished, which is
+      // indistinguishable from the connection having failed.
+      messenger.showSnackBar(SnackBar(
+        content: Text(!result.isSuccess
+            ? 'We couldn’t read your health data. You can try again from '
+                'Settings → Data.'
+            : result.newRuns == 0
+                ? 'Connected. Nothing new to import yet — future runs will '
+                    'arrive on their own.'
+                : 'Connected — imported ${result.newRuns} '
+                    'run${result.newRuns == 1 ? '' : 's'}, '
+                    '${units.distance(result.totalKm)}.'),
+      ));
     } catch (_) {
-      // Fall through: we still record that we asked, so this is never a dead end.
+      messenger.showSnackBar(const SnackBar(
+        content: Text('We couldn’t connect just now. You can try again from '
+            'Settings → Data.'),
+      ));
     } finally {
       if (mounted) setState(() => _busy = false);
       await _dismiss();
@@ -92,12 +106,12 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
                     size: 52, color: scheme.onSecondary),
               ),
               const SizedBox(height: Space.xl),
-              Text('Your plan is ready',
+              Text('Let your runs log themselves',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.displaySmall),
               const SizedBox(height: Space.sm),
               Text(
-                'Now let it keep itself up to date.',
+                'Connect once and your plan keeps itself up to date.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium
                     ?.copyWith(color: scheme.onSurfaceVariant),

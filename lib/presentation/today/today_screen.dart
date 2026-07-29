@@ -7,6 +7,7 @@ import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
+import '../../domain/engine/reschedule_outcome.dart';
 import '../../domain/models/completed_run.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
@@ -65,6 +66,8 @@ class TodayScreen extends ConsumerWidget {
             await syncAndSettle(
               sync: ref.read(syncRepositoryProvider),
               scheduler: ref.read(schedulerRepositoryProvider),
+              onAdjustment:
+                  ref.read(recentAdjustmentProvider.notifier).record,
             );
             ref
               ..invalidate(plannedRunsProvider)
@@ -252,8 +255,18 @@ class _TodayRunHero extends ConsumerWidget {
               ),
               const SizedBox(width: Space.md),
               Expanded(
-                child: Text(runTypeLabel(run.type),
-                    style: theme.textTheme.titleLarge),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(runTypeLabel(run.type),
+                        style: theme.textTheme.titleLarge),
+                    // If today's run was moved here by the engine, say so on
+                    // the run itself rather than only in the Plan tab.
+                    if (run.wasShifted)
+                      ShiftBanner(
+                          from: run.originalDate, to: run.scheduledDate),
+                  ],
+                ),
               ),
               if (done) StatusChip(status: run.status),
             ],
@@ -380,7 +393,11 @@ class _AttentionQueueState extends ConsumerState<_AttentionQueue> {
       items.add(const _DecisionItem());
     }
 
-    // 2. Workouts the matcher wasn't confident enough to attach on its own.
+    // 2. A reshuffle the athlete hasn't been told about yet.
+    final adjustment = ref.watch(recentAdjustmentProvider);
+    if (adjustment != null) items.add(_AdjustmentItem(outcome: adjustment));
+
+    // 3. Workouts the matcher wasn't confident enough to attach on its own.
     final pending = ref.watch(unconfirmedRunsProvider).value ?? const [];
     final planned = ref.watch(plannedRunsProvider).value ?? const [];
     for (final run in pending) {
@@ -393,7 +410,7 @@ class _AttentionQueueState extends ConsumerState<_AttentionQueue> {
       }
     }
 
-    // 3. The standing offer of automatic capture, for anyone still typing runs
+    // 4. The standing offer of automatic capture, for anyone still typing runs
     //    in by hand.
     if (_shouldOfferConnect()) items.add(const _ConnectItem());
 
@@ -425,13 +442,21 @@ class _AttentionQueueState extends ConsumerState<_AttentionQueue> {
     );
   }
 
+  /// Offer automatic capture to anyone still logging by hand.
+  ///
+  /// This card used to be permanently undismissible, on the reasoning that
+  /// manual logging is what we're trying to get people out of. That reasoning
+  /// is sound and the card is still not removable — but it now sits *last* in
+  /// a collapsible queue, and goes quiet for a fortnight after each time the
+  /// athlete says "not now". An offer that repeats every single day is a nag.
   bool _shouldOfferConnect() {
     final settings = ref.watch(settingsProvider).value;
     if (settings == null) return false;
     if (ref.watch(healthAvailableProvider).value != true) return false;
-    // Never asked → the connect screen is about to handle it; already syncing
-    // → nothing to offer.
-    return settings.healthPromptedAt != null && settings.lastSyncAt == null;
+    if (settings.lastSyncAt != null) return false; // already syncing
+    final asked = settings.healthPromptedAt;
+    if (asked == null) return true;
+    return DateTime.now().difference(asked).inDays >= 14;
   }
 }
 
@@ -471,6 +496,70 @@ class _DecisionItem extends ConsumerWidget {
           FilledButton.tonal(
             onPressed: () => resolveDegradeDecision(context, ref),
             child: const Text('Choose how to adapt'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Here's what the engine changed while you weren't looking."
+///
+/// The rollover runs at launch, on resume and in the background. Until now its
+/// result was discarded at every one of those call sites, so runs moved,
+/// shrank and disappeared with no announcement — the only evidence was a small
+/// banner two taps away in the Plan tab.
+class _AdjustmentItem extends ConsumerWidget {
+  const _AdjustmentItem({required this.outcome});
+
+  final RescheduleOutcome outcome;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final units = ref.watch(unitsProvider);
+    return QuietSurface(
+      accent: scheme.warning,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_fix_high_rounded, color: scheme.warning,
+                  size: 20),
+              const SizedBox(width: Space.md),
+              Expanded(
+                child: Text('Your plan was adjusted',
+                    style: theme.textTheme.titleMedium),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.sm),
+          Text(buildShiftSummary(outcome, units),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: Space.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await PlanAdjustedSheet.show(context, outcome, units);
+                    ref.read(recentAdjustmentProvider.notifier).dismiss();
+                  },
+                  child: const Text('See details'),
+                ),
+              ),
+              const SizedBox(width: Space.sm),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () =>
+                      ref.read(recentAdjustmentProvider.notifier).dismiss(),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -588,9 +677,23 @@ class _ConnectItem extends ConsumerWidget {
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: Space.md),
-          FilledButton.tonal(
-            onPressed: () => context.push('/sync'),
-            child: const Text('Set up automatic logging'),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () => context.push('/connect'),
+                  child: const Text('Set this up'),
+                ),
+              ),
+              const SizedBox(width: Space.sm),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      ref.read(settingsRepositoryProvider).markHealthPrompted(),
+                  child: const Text('Not now'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

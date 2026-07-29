@@ -12,6 +12,7 @@ import 'providers/providers.dart';
 import 'run_detail/run_detail_screen.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_settings_screen.dart';
+import 'settings/edit_plan_screen.dart';
 import 'settings/settings_screen.dart';
 import 'settings/training_settings_screen.dart';
 import 'stats/stats_screen.dart';
@@ -35,14 +36,14 @@ String? resolveRedirect({
   if (planLoading) return location == '/loading' ? null : '/loading';
   if (!hasPlan) return location == '/onboarding' ? null : '/onboarding';
 
-  // One-time connect step, straight after a plan exists. Gated on settings
-  // having actually loaded, so we never flash it on a null; and on the platform
-  // having a health store at all, so desktop/web never sees a dead end.
-  final askToConnect =
-      settings != null && settings.healthPromptedAt == null && supportsHealth;
-  if (askToConnect) return location == '/connect' ? null : '/connect';
-  if (location == '/connect') return '/today';
-
+  // Health connect is **not** gated here any more.
+  //
+  // It used to be a forced full-screen step the moment a plan existed, so the
+  // very first thing a new athlete saw after answering eight questions was a
+  // screen headed "Your plan is ready" that showed them none of their plan and
+  // asked for a sensitive health permission instead. Now they land on Today,
+  // see the plan they just built, and the offer waits for them in the
+  // attention queue — reachable at `/connect` whenever they want it.
   if (location == '/onboarding' || location == '/loading') return '/today';
   return null;
 }
@@ -105,6 +106,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/coach',
         pageBuilder: (context, state) =>
             sharedAxisPage(key: state.pageKey, child: const AskCoachScreen()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/settings/plan',
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const EditPlanScreen()),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

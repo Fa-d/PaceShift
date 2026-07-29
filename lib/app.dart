@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme.dart';
+import 'domain/engine/reschedule_outcome.dart';
 import 'presentation/providers/providers.dart';
 import 'presentation/router.dart';
 import 'services/notifications/notification_service.dart';
 
 class PaceShiftApp extends ConsumerStatefulWidget {
-  const PaceShiftApp({super.key});
+  const PaceShiftApp({super.key, this.launchAdjustment});
+
+  /// What the startup day-rollover changed, if anything. Surfaced on Today so
+  /// a plan rewritten while the app was closed doesn't go unannounced.
+  final RescheduleOutcome? launchAdjustment;
 
   @override
   ConsumerState<PaceShiftApp> createState() => _PaceShiftAppState();
@@ -29,6 +34,7 @@ class _PaceShiftAppState extends ConsumerState<PaceShiftApp>
   }
 
   Future<void> _bootstrap() async {
+    ref.read(recentAdjustmentProvider.notifier).record(widget.launchAdjustment);
     // Route notification taps/actions to the engine.
     NotificationService.onAction = _handleNotificationAction;
     // Ask for notification permission (Android 13+); harmless if already granted.
@@ -55,6 +61,7 @@ class _PaceShiftAppState extends ConsumerState<PaceShiftApp>
         sync: ref.read(syncRepositoryProvider),
         scheduler: ref.read(schedulerRepositoryProvider),
         onlyIfStale: true,
+        onAdjustment: ref.read(recentAdjustmentProvider.notifier).record,
       );
     } catch (_) {
       // Sync is an enhancement, never a hard dependency.
@@ -65,7 +72,11 @@ class _PaceShiftAppState extends ConsumerState<PaceShiftApp>
       String? actionId, String? payload) async {
     if (actionId == NotificationIds.actionCouldNotRun) {
       // The evening check "Couldn't run today" → run day rollover immediately.
-      await ref.read(schedulerRepositoryProvider).runDayRollover();
+      final outcome =
+          await ref.read(schedulerRepositoryProvider).runDayRollover();
+      // Answering from the lock screen still deserves an answer back: the
+      // result lands on Today rather than vanishing.
+      ref.read(recentAdjustmentProvider.notifier).record(outcome);
     }
     // "Mark done" simply opens the app on Today, where the user logs the run.
   }

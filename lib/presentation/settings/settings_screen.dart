@@ -7,9 +7,12 @@ import '../../core/formatting.dart';
 import '../../core/motion.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/enums.dart';
+import '../../data/billing/subscription_service.dart';
 import '../auth/sign_in_screen.dart';
 import '../providers/auth_providers.dart';
+import '../providers/entitlement_providers.dart';
 import '../providers/providers.dart';
+import '../providers/subscription_providers.dart';
 import 'widgets/settings_section.dart';
 
 /// Settings hub: a lean top level with the account and the few common controls
@@ -87,9 +90,17 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: Space.xl),
+            const _ProSection(),
+            const SizedBox(height: Space.xl),
             SettingsSection(
               title: 'More',
               children: [
+                SettingsTile(
+                  leading: Icons.event_note_rounded,
+                  title: 'Your plan',
+                  subtitle: 'Race date, distance, weekly shape',
+                  onTap: () => context.push('/settings/plan'),
+                ),
                 SettingsTile(
                   leading: Icons.tune_rounded,
                   title: 'Training & adaptivity',
@@ -111,6 +122,56 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Subscription status, and the way in and out of it.
+///
+/// Pro used to be reachable only by walking into a wall: `showPaywall` was
+/// called exclusively from `ensurePro`, and "Restore purchases" lived *inside*
+/// the paywall — so someone who had already bought on another device had to
+/// trigger a paywall before they could tell the app they'd paid.
+class _ProSection extends ConsumerWidget {
+  const _ProSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPro = ref.watch(proStatusProvider);
+    return SettingsSection(
+      title: 'Subscription',
+      children: [
+        SettingsTile(
+          leading: isPro ? Icons.verified_rounded : Icons.bolt_rounded,
+          title: isPro ? 'PaceShift Pro' : 'Upgrade to Pro',
+          subtitle: isPro
+              ? 'AI coaching and cloud backup are active'
+              : 'AI coaching and cloud backup',
+          onTap: isPro ? null : () => showPaywall(context),
+          trailing: isPro ? const Icon(Icons.check_rounded) : null,
+        ),
+        SettingsTile(
+          leading: Icons.restore_rounded,
+          title: 'Restore purchases',
+          onTap: () => _restore(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result =
+        await ref.read(subscriptionServiceProvider).restore();
+    messenger.showSnackBar(SnackBar(content: Text(switch (result) {
+      PurchaseResult.success => 'Pro restored — welcome back.',
+      PurchaseResult.cancelled => 'Nothing to restore.',
+      PurchaseResult.notConfigured =>
+        'The store isn’t available right now. Try again shortly.',
+      PurchaseResult.error => 'We couldn’t restore that. Try again shortly.',
+    })));
+    if (result == PurchaseResult.success) {
+      ref.read(proStatusProvider.notifier).grantLocally();
+    }
   }
 }
 
@@ -168,8 +229,7 @@ class _AccountSection extends ConsumerWidget {
                 ),
               ),
               TextButton(
-                onPressed: () =>
-                    ref.read(authControllerProvider.notifier).logout(),
+                onPressed: () => _confirmSignOut(context, ref),
                 child: const Text('Sign out'),
               ),
             ],
@@ -207,8 +267,50 @@ class _AccountSection extends ConsumerWidget {
         ],
       ),
     );
+    if (ok != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    // Deleting an account is slow and can fail. It used to run with no
+    // progress, no result and no error handling — a failed server-side
+    // deletion signed you out and looked exactly like success.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    final deleted =
+        await ref.read(authControllerProvider.notifier).deleteAccount();
+    if (!context.mounted) return;
+    Navigator.of(context).pop(); // dismiss the progress dialog
+    messenger.showSnackBar(SnackBar(
+      content: Text(deleted
+          ? 'Your account has been deleted.'
+          : 'We couldn’t delete your account. Nothing has changed — '
+              'try again shortly.'),
+    ));
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+            'Your plan and history stay on this device. You’ll need to sign '
+            'in again to back up or sync.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Sign out')),
+        ],
+      ),
+    );
     if (ok == true) {
-      await ref.read(authControllerProvider.notifier).deleteAccount();
+      await ref.read(authControllerProvider.notifier).logout();
+      ref.read(proStatusProvider.notifier).reset();
     }
   }
 }

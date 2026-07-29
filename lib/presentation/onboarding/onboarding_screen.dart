@@ -3,6 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/design.dart';
+import '../../core/errors.dart';
 import '../../core/formatting.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/plan_generator/plan_input.dart';
@@ -22,8 +24,12 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  // Step 0 is the welcome intro; 1..7 are the questions.
-  static const int _lastStep = 7;
+  // Step 0 is the welcome intro; 1..5 are the questions.
+  //
+  // This was eight steps, several of which asked a single pre-answered
+  // question. Race distance and race date belong together (both are "the
+  // race"), as do current fitness and weekly shape (both are "your running").
+  static const int _lastStep = 5;
   int _step = 0;
 
   // --- Collected inputs ---
@@ -32,6 +38,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   double _raceDistanceKm = 42.2;
   DateTime _raceDate = DateTime.now().add(const Duration(days: 133)); // ~19 weeks
   final _longestRun = TextEditingController(text: '18');
+  /// Canonical kilometre value behind [_longestRun], so unit toggling is
+  /// lossless no matter how many times it happens.
+  double? _longestKm = 18;
   String? _longestError;
   int _daysPerWeek = 3;
   int _longRunDay = DateTime.saturday;
@@ -40,6 +49,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _goalMinutes = 0;
 
   bool _creating = false;
+  String? _generateError;
 
   @override
   void dispose() {
@@ -76,7 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   bool _validateStep(int step) {
-    if (step == 4) {
+    if (step == 3) {
       final d = double.tryParse(_longestRun.text.trim());
       if (d == null || d <= 0) {
         setState(() => _longestError = 'Enter your longest recent run');
@@ -99,21 +109,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (picked != null) setState(() => _raceDate = picked);
   }
 
+  /// Toggling units re-renders the same underlying distance.
+  ///
+  /// This used to round-trip the *text* through kilometres and back on every
+  /// toggle, trimming to one decimal each way — so flipping km → mi → km
+  /// quietly changed the number the athlete had typed.
   void _setUnits(UnitSystem u) {
     if (u == _units) return;
-    final v = double.tryParse(_longestRun.text.trim());
+    final typed = double.tryParse(_longestRun.text.trim());
+    if (typed != null && typed > 0) _longestKm = _toKm(typed);
     setState(() {
-      if (v != null && v > 0) {
-        final km = _toKm(v); // convert from the *old* unit to km first
-        final converted = u == UnitSystem.metric ? km : km / 1.60934;
-        _longestRun.text = _trimNum(converted);
-      }
       _units = u;
+      final km = _longestKm;
+      if (km != null) {
+        _longestRun.text =
+            _trimNum(u == UnitSystem.metric ? km : km / 1.60934);
+      }
     });
   }
 
   Future<void> _generate() async {
-    setState(() => _creating = true);
+    setState(() {
+      _creating = true;
+      _generateError = null;
+    });
     final input = PlanInput(
       raceDate: _raceDate,
       raceDistanceKm: _raceDistanceKm,
@@ -132,6 +151,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ));
       await ref.read(planRepositoryProvider).createPlanFromInput(input);
       // Router redirect picks up the active plan and moves to Today.
+    } catch (e) {
+      // Without this the wizard dead-ended on the review step: the spinner
+      // stopped, no plan appeared, and nothing explained why.
+      if (mounted) {
+        setState(() => _generateError = friendlyError(e,
+            fallback: 'We couldn’t build your plan. Please try again.'));
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }
@@ -256,14 +282,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 1:
         return _nameStep(theme);
       case 2:
-        return _distanceStep(theme);
+        return _raceStep(theme);
       case 3:
-        return _dateStep(theme);
+        return _runningStep(theme);
       case 4:
-        return _fitnessStep(theme);
-      case 5:
-        return _weekStep(theme);
-      case 6:
         return _goalStep(theme);
       default:
         return _reviewStep(theme);
@@ -390,14 +412,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           onSubmitted: (_) => _next(),
         ),
+        const SizedBox(height: Space.sm),
+        // The copy said "skip if you'd rather not" and then offered no way to
+        // skip — the only button was "Continue".
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () {
+              _nameController.clear();
+              _next();
+            },
+            child: const Text('Skip this'),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _distanceStep(ThemeData theme) {
+  /// "The race": distance and date. Both answer the same question — *what*
+  /// are you training for — and both were pre-answered, so asking them on
+  /// separate full screens was two taps of ceremony for no decision.
+  Widget _raceStep(ThemeData theme) {
+    final scheme = theme.colorScheme;
     return _stepScaffold(
-      title: 'Which race are you training for?',
-      subtitle: 'This sets the shape and peak of your plan.',
+      title: 'What are you training for?',
+      subtitle: 'Your race date becomes the anchor everything counts back '
+          'from — taper included.',
       children: [
         _OptionCard(
           icon: Icons.terrain_rounded,
@@ -406,7 +446,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           selected: _raceDistanceKm == 42.2,
           onTap: () => setState(() => _raceDistanceKm = 42.2),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: Space.md),
         _OptionCard(
           icon: Icons.directions_run_rounded,
           title: 'Half marathon',
@@ -414,34 +454,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           selected: _raceDistanceKm == 21.1,
           onTap: () => setState(() => _raceDistanceKm = 21.1),
         ),
-      ],
-    );
-  }
-
-  Widget _dateStep(ThemeData theme) {
-    final scheme = theme.colorScheme;
-    return _stepScaffold(
-      title: 'When’s race day?',
-      subtitle: 'Everything counts back from here — taper included.',
-      children: [
+        const SizedBox(height: Space.xl),
+        _GroupLabel('Race day', theme),
+        const SizedBox(height: Space.sm),
         InkWell(
           onTap: _pickRaceDate,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: AppRadius.mdAll,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            padding: const EdgeInsets.symmetric(
+                horizontal: Space.lg, vertical: Space.xl),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppRadius.mdAll,
             ),
             child: Row(
               children: [
                 Icon(Icons.event_rounded, color: scheme.primary),
-                const SizedBox(width: 14),
+                const SizedBox(width: Space.md),
                 Expanded(
                   child: Text(
                     '${formatDateLabel(_raceDate)}, ${_raceDate.year}',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.titleMedium,
                   ),
                 ),
                 Icon(Icons.edit_calendar_rounded,
@@ -450,73 +483,65 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.timelapse_rounded,
-                  color: scheme.primary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '≈ $_weeksToRace weeks until race day',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+        const SizedBox(height: Space.md),
+        Text(
+          '≈ $_weeksToRace weeks to build up.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
+  /// "Your running": where you are now and what a normal week looks like.
+  Widget _runningStep(ThemeData theme) {
+    return _stepScaffold(
+      title: 'Tell us about your running',
+      subtitle: 'A rough answer is fine — you can change all of this later.',
+      children: [
+        _GroupLabel('Longest recent run', theme),
+        const SizedBox(height: Space.sm),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _longestRun,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.straighten_rounded),
+                  suffixText: _unitLabel,
+                  errorText: _longestError,
+                  hintText: _units == UnitSystem.metric ? 'e.g. 18' : 'e.g. 11',
                 ),
+                onChanged: (v) {
+                  final parsed = double.tryParse(v.trim());
+                  if (parsed != null && parsed > 0) _longestKm = _toKm(parsed);
+                  if (_longestError != null) {
+                    setState(() => _longestError = null);
+                  }
+                },
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: Space.md),
+            SegmentedButton<UnitSystem>(
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: UnitSystem.metric, label: Text('km')),
+                ButtonSegment(value: UnitSystem.imperial, label: Text('mi')),
+              ],
+              selected: {_units},
+              onSelectionChanged: (s) => _setUnits(s.first),
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _fitnessStep(ThemeData theme) {
-    return _stepScaffold(
-      title: 'How far is your longest recent run?',
-      subtitle: 'A rough number is fine — it sets your safe starting point.',
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SegmentedButton<UnitSystem>(
-            segments: const [
-              ButtonSegment(value: UnitSystem.metric, label: Text('km')),
-              ButtonSegment(value: UnitSystem.imperial, label: Text('mi')),
-            ],
-            selected: {_units},
-            onSelectionChanged: (s) => _setUnits(s.first),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _longestRun,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.straighten_rounded),
-            suffixText: _unitLabel,
-            errorText: _longestError,
-            hintText: _units == UnitSystem.metric ? 'e.g. 18' : 'e.g. 11',
-          ),
-          onChanged: (_) {
-            if (_longestError != null) setState(() => _longestError = null);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _weekStep(ThemeData theme) {
-    return _stepScaffold(
-      title: 'How does your training week look?',
-      subtitle: 'You can fine-tune both of these any time.',
-      children: [
+        const SizedBox(height: Space.xl),
         _GroupLabel('Runs per week', theme),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.sm),
         SegmentedButton<int>(
           segments: const [
             ButtonSegment(value: 3, label: Text('3')),
@@ -526,12 +551,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           selected: {_daysPerWeek},
           onSelectionChanged: (s) => setState(() => _daysPerWeek = s.first),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: Space.xl),
         _GroupLabel('Long-run day', theme),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.sm),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: Space.sm,
+          runSpacing: Space.sm,
           children: [
             for (var d = 1; d <= 7; d++)
               ChoiceChip(
@@ -548,13 +573,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _goalStep(ThemeData theme) {
     return _stepScaffold(
       title: 'Do you have a goal finish time?',
-      subtitle: 'Set one to unlock pace targets and quality workouts. Leave it '
-          'off to train by feel.',
+      subtitle: 'Set one and your runs get pace targets and quality sessions. '
+          'Leave it off to train by feel.',
       children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('I have a goal finish time'),
-          subtitle: const Text('Unlocks pace targets & quality workouts'),
+          subtitle: const Text('Adds pace targets & quality sessions'),
           value: _hasGoalTime,
           onChanged: (v) => setState(() => _hasGoalTime = v),
         ),
@@ -643,14 +668,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: Space.lg),
         Text(
           'Your race date is the anchor. Miss a run and PaceShift safely '
-          'redistributes the work — it never crams unsafe weeks.',
+          'spreads the work — it never crams unsafe weeks.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall
               ?.copyWith(color: scheme.onSurfaceVariant),
         ),
+        if (_generateError != null) ...[
+          const SizedBox(height: Space.lg),
+          SurfaceError(message: _generateError!, compact: true),
+        ],
       ],
     );
   }

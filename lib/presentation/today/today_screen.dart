@@ -11,6 +11,7 @@ import '../../domain/engine/reschedule_outcome.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
 import '../../domain/readiness/readiness_scorer.dart';
+import '../../domain/sync/workout_matcher.dart';
 import '../ai/coach_chat_sheet.dart';
 import '../genui/genui_surface_view.dart';
 import '../providers/providers.dart';
@@ -43,7 +44,15 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => ref.invalidate(plannedRunsProvider),
+          // An explicit pull is a request for fresh data, so it really syncs —
+          // it used to only re-read what was already on disk.
+          onRefresh: () async {
+            await syncAndSettle(
+              sync: ref.read(syncRepositoryProvider),
+              scheduler: ref.read(schedulerRepositoryProvider),
+            );
+            ref.invalidate(plannedRunsProvider);
+          },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             children: [
@@ -89,6 +98,8 @@ class TodayScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 const _CoachBriefing(),
               ],
+              const _UnconfirmedRuns(),
+              const _ConnectPrompt(),
               const SizedBox(height: 16),
               if (todayRuns.isEmpty)
                 _RestCard()
@@ -105,6 +116,169 @@ class TodayScreen extends ConsumerWidget {
               ),
             ].revealStagger(context),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Offers automatic capture to anyone still logging by hand.
+///
+/// Shown only once the one-time connect screen has been answered *and* declined
+/// — i.e. `healthPromptedAt` is set but nothing has ever synced. It stays put
+/// rather than being dismissible: manual logging is the thing we're trying to
+/// get people out of, and a one-tap dismissal would leave them there silently.
+class _ConnectPrompt extends ConsumerWidget {
+  const _ConnectPrompt();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider).value;
+    final available = ref.watch(healthAvailableProvider).value;
+    if (settings == null || available != true) return const SizedBox.shrink();
+    // Never asked → the connect screen is about to handle it; already syncing →
+    // nothing to offer.
+    if (settings.healthPromptedAt == null || settings.lastSyncAt != null) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.watch_rounded, color: scheme.primary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Logging runs by hand?',
+                        style: theme.textTheme.titleMedium),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Connect ${ref.watch(syncRepositoryProvider).providerName} once '
+                'and PaceShift picks up your runs on its own.',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.tonal(
+                onPressed: () => context.push('/sync'),
+                child: const Text('Set up automatic logging'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Synced runs the matcher wasn't confident enough to attach on its own.
+///
+/// The engine only guesses when it's sure; anything ambiguous lands here so a
+/// casual jog can't silently mark a key long run as done.
+class _UnconfirmedRuns extends ConsumerWidget {
+  const _UnconfirmedRuns();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(unconfirmedRunsProvider).value ?? const [];
+    if (pending.isEmpty) return const SizedBox.shrink();
+    final planned = ref.watch(plannedRunsProvider).value ?? const [];
+
+    // Drop suggestions whose target is gone or has since been satisfied some
+    // other way — asking "is this your long run?" about an already-completed
+    // run is just noise.
+    final live = <({CompletedRun run, PlannedRun target})>[];
+    for (final run in pending) {
+      final target =
+          planned.where((p) => p.id == run.suggestedPlannedRunId).firstOrNull;
+      if (target != null && isClaimableByWorkout(target)) {
+        live.add((run: run, target: target));
+      }
+    }
+    if (live.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        for (final item in live)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: _ConfirmMatchCard(run: item.run, planned: item.target),
+          ),
+      ],
+    );
+  }
+}
+
+class _ConfirmMatchCard extends ConsumerWidget {
+  const _ConfirmMatchCard({required this.run, required this.planned});
+
+  final CompletedRun run;
+  final PlannedRun planned;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final target = planned;
+    final repo = ref.read(runRepositoryProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.help_outline_rounded,
+                    color: scheme.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Is this your ${runTypeLabel(target.type).toLowerCase()}?',
+                      style: theme.textTheme.titleMedium),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You ran ${formatKm(run.actualDistanceKm)} on '
+              '${formatDateLabel(run.date)}. '
+              '${runTypeLabel(target.type)} on ${formatDateLabel(target.scheduledDate)} '
+              'is still open.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 14),
+            // Themed buttons stretch to infinite width, so each needs a flex
+            // parent — never drop one straight into a Row.
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => repo.confirmSuggestedMatch(run),
+                    child: const Text('Yes, that’s it'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => repo.rejectSuggestedMatch(run.id),
+                    child: const Text('No, extra run'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

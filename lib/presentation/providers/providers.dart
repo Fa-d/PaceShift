@@ -54,15 +54,41 @@ final syncRepositoryProvider = Provider<SyncRepository>(
       ref.watch(databaseProvider), ref.watch(healthServiceProvider)),
 );
 
-/// Whether Health Connect is usable on this device.
+/// Whether a readable health store exists on this device.
 final healthAvailableProvider = FutureProvider<bool>(
   (ref) => ref.watch(syncRepositoryProvider).isAvailable(),
 );
 
-/// Last successful sync time (null until first sync).
-final lastSyncProvider = FutureProvider<DateTime?>(
-  (ref) => ref.watch(syncRepositoryProvider).lastSync(),
+/// Last successful sync time (null until first sync). Sourced from settings so
+/// it updates reactively as syncs complete.
+final lastSyncProvider = Provider<DateTime?>(
+  (ref) => ref.watch(settingsProvider).value?.lastSyncAt,
 );
+
+/// Synced runs whose planned-run match needs a yes/no from the user.
+final unconfirmedRunsProvider = StreamProvider<List<CompletedRun>>(
+  (ref) => ref.watch(runRepositoryProvider).watchUnconfirmedRuns(),
+);
+
+/// Runs a sync and settles the plan afterwards.
+///
+/// When a workout is attached to a run the day rollover had already written off
+/// as missed, the engine has redistributed load on the strength of a miss that
+/// didn't happen — so re-run the rollover to let it reconcile.
+Future<SyncResult> syncAndSettle({
+  required SyncRepository sync,
+  required SchedulerRepository scheduler,
+  SyncTrigger trigger = SyncTrigger.manual,
+  bool onlyIfStale = false,
+}) async {
+  final result = onlyIfStale
+      ? await sync.syncIfStale()
+      : await sync.syncNow(trigger: trigger);
+  if (result.recoveredMissedRun) {
+    await scheduler.runDayRollover();
+  }
+  return result;
+}
 
 /// Today's calendar date. A plain provider for Phase 1; background day-rollover
 /// (Phase 4) drives real transitions.

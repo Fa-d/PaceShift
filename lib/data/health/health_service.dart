@@ -37,14 +37,31 @@ class HealthService {
   final Health _health;
   bool _configured = false;
 
-  static const _readTypes = <HealthDataType>[
+  /// Whether this platform has a health store we can read at all. Android uses
+  /// Health Connect, iOS uses HealthKit; everything else is manual-only.
+  static bool get isSupportedPlatform => Platform.isAndroid || Platform.isIOS;
+
+  /// User-facing name of this platform's health store.
+  static String get providerName =>
+      Platform.isIOS ? 'Apple Health' : 'Health Connect';
+
+  /// Types we'd *like* to read. Support differs per platform — notably distance,
+  /// which is `DISTANCE_DELTA` on Health Connect and `DISTANCE_WALKING_RUNNING`
+  /// on HealthKit — so this list is filtered through the plugin's own
+  /// availability check before any request. Asking for a type the platform
+  /// doesn't know about fails the whole authorization call.
+  static const _candidateTypes = <HealthDataType>[
     HealthDataType.WORKOUT,
-    HealthDataType.DISTANCE_DELTA,
+    HealthDataType.DISTANCE_DELTA, // Android
+    HealthDataType.DISTANCE_WALKING_RUNNING, // iOS
     HealthDataType.HEART_RATE,
     HealthDataType.STEPS,
     HealthDataType.TOTAL_CALORIES_BURNED,
     HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
+
+  List<HealthDataType> get _readTypes =>
+      _candidateTypes.where(_health.isDataTypeAvailable).toList();
 
   /// Health Connect activity types we import, mapped to our [ActivityType].
   /// Walks/hikes are stored but excluded from running stats downstream.
@@ -65,24 +82,42 @@ class HealthService {
     _configured = true;
   }
 
-  /// Whether Health Connect is usable on this device.
+  /// Whether a readable health store exists on this device.
   Future<bool> isAvailable() async {
-    if (!Platform.isAndroid) return false;
+    if (!isSupportedPlatform) return false;
     await _ensureConfigured();
+    // HealthKit ships on every iPhone — nothing to install or check.
+    if (Platform.isIOS) return true;
     final status = await _health.getHealthConnectSdkStatus();
     return status == HealthConnectSdkStatus.sdkAvailable;
   }
 
-  /// Opens the Play Store to install/update Health Connect.
-  Future<void> installHealthConnect() => _health.installHealthConnect();
+  /// Whether Health Connect can be installed/updated from the Play Store. Always
+  /// false on iOS, where there's nothing to install.
+  bool get canInstallProvider => Platform.isAndroid;
 
-  Future<bool> hasPermissions() async {
+  /// Opens the Play Store to install/update Health Connect. No-op off Android.
+  Future<void> installHealthConnect() async {
+    if (!canInstallProvider) return;
+    await _health.installHealthConnect();
+  }
+
+  /// Read-permission state as the platform actually reports it:
+  /// `true` granted, `false` denied, **`null` undetermined**.
+  ///
+  /// Apple deliberately never discloses whether READ access was granted, so this
+  /// is always null on iOS. Callers must not collapse null to false — doing so
+  /// makes iOS look permanently denied and re-prompts on every sync. See
+  /// [SyncRepository], which resolves the tri-state against a persisted
+  /// "we already asked" timestamp.
+  Future<bool?> permissionStatus() async {
+    if (!isSupportedPlatform) return false;
     await _ensureConfigured();
-    return await _health.hasPermissions(_readTypes, permissions: _readAccess) ??
-        false;
+    return _health.hasPermissions(_readTypes, permissions: _readAccess);
   }
 
   Future<bool> requestPermissions() async {
+    if (!isSupportedPlatform) return false;
     await _ensureConfigured();
     return _health.requestAuthorization(_readTypes, permissions: _readAccess);
   }

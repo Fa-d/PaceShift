@@ -150,13 +150,13 @@ class RunDetailScreen extends ConsumerWidget {
   }
 }
 
-class _ActualCard extends StatelessWidget {
+class _ActualCard extends ConsumerWidget {
   const _ActualCard({required this.completed});
 
   final CompletedRun completed;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -212,11 +212,22 @@ class _ActualCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   completed.source == RunSource.healthConnect
-                      ? 'From Health Connect'
+                      ? 'Imported automatically'
                       : 'Logged manually',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
+                // Escape hatch for an automatic match that got it wrong: unlink
+                // the workout and reopen the session for the engine.
+                if (completed.source == RunSource.healthConnect &&
+                    completed.plannedRunId != null) ...[
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(runRepositoryProvider).detachCompletedRun(completed),
+                    child: const Text('Not this run'),
+                  ),
+                ],
               ],
             ),
           ],

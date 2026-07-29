@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/motion.dart';
+import '../data/health/health_service.dart';
+import '../domain/models/app_settings.dart';
 import 'genui/ask_coach_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'plan/plan_screen.dart';
@@ -13,17 +15,47 @@ import 'settings/data_settings_screen.dart';
 import 'settings/settings_screen.dart';
 import 'settings/training_settings_screen.dart';
 import 'stats/stats_screen.dart';
+import 'sync/connect_health_screen.dart';
 import 'sync/sync_screen.dart';
 import 'today/today_screen.dart';
 import 'widgets/app_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
+/// The router's gating rules, as a pure function so they can be tested without
+/// a live platform, database, or navigator. Returns the location to redirect
+/// to, or null to stay put.
+String? resolveRedirect({
+  required String location,
+  required bool planLoading,
+  required bool hasPlan,
+  required AppSettings? settings,
+  required bool supportsHealth,
+}) {
+  if (planLoading) return location == '/loading' ? null : '/loading';
+  if (!hasPlan) return location == '/onboarding' ? null : '/onboarding';
+
+  // One-time connect step, straight after a plan exists. Gated on settings
+  // having actually loaded, so we never flash it on a null; and on the platform
+  // having a health store at all, so desktop/web never sees a dead end.
+  final askToConnect =
+      settings != null && settings.healthPromptedAt == null && supportsHealth;
+  if (askToConnect) return location == '/connect' ? null : '/connect';
+  if (location == '/connect') return '/today';
+
+  if (location == '/onboarding' || location == '/loading') return '/today';
+  return null;
+}
+
 /// App router. Redirects to onboarding until an active plan exists, and shows a
 /// brief splash while the active plan loads from disk.
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(activePlanProvider, (prev, next) => refresh.value++);
+  // The connect gate below keys off settings, so the redirect has to be
+  // re-evaluated when they change — otherwise dismissing the screen wouldn't
+  // release the gate.
+  ref.listen(settingsProvider, (prev, next) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -32,17 +64,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final planState = ref.read(activePlanProvider);
-      final loc = state.matchedLocation;
-
-      if (planState.isLoading && !planState.hasValue) {
-        return loc == '/loading' ? null : '/loading';
-      }
-      final hasPlan = planState.value != null;
-      if (!hasPlan) {
-        return loc == '/onboarding' ? null : '/onboarding';
-      }
-      if (loc == '/onboarding' || loc == '/loading') return '/today';
-      return null;
+      return resolveRedirect(
+        location: state.matchedLocation,
+        planLoading: planState.isLoading && !planState.hasValue,
+        hasPlan: planState.value != null,
+        settings: ref.read(settingsProvider).value,
+        supportsHealth: HealthService.isSupportedPlatform,
+      );
     },
     routes: [
       GoRoute(
@@ -67,6 +95,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/sync',
         pageBuilder: (context, state) =>
             sharedAxisPage(key: state.pageKey, child: const SyncScreen()),
+      ),
+      GoRoute(
+        path: '/connect',
+        builder: (context, state) => const ConnectHealthScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

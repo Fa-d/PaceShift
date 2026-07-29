@@ -13,11 +13,19 @@ class PaceShiftApp extends ConsumerStatefulWidget {
   ConsumerState<PaceShiftApp> createState() => _PaceShiftAppState();
 }
 
-class _PaceShiftAppState extends ConsumerState<PaceShiftApp> {
+class _PaceShiftAppState extends ConsumerState<PaceShiftApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -25,6 +33,32 @@ class _PaceShiftAppState extends ConsumerState<PaceShiftApp> {
     NotificationService.onAction = _handleNotificationAction;
     // Ask for notification permission (Android 13+); harmless if already granted.
     await ref.read(notificationServiceProvider).requestPermissions();
+    // Pull anything the watch recorded while we were away. Runs here rather
+    // than in `main()` so the UI is already up — a sync that needs to surface a
+    // permission sheet or an error shouldn't happen against a blank screen.
+    await _autoSync();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back to the app is the moment a just-finished run is most likely
+    // to be waiting in the health store.
+    if (state == AppLifecycleState.resumed) _autoSync();
+  }
+
+  /// Throttled background-style sync. Never prompts for permissions — an
+  /// unexplained system dialog on resume reads as a bug.
+  Future<void> _autoSync() async {
+    if (!mounted) return;
+    try {
+      await syncAndSettle(
+        sync: ref.read(syncRepositoryProvider),
+        scheduler: ref.read(schedulerRepositoryProvider),
+        onlyIfStale: true,
+      );
+    } catch (_) {
+      // Sync is an enhancement, never a hard dependency.
+    }
   }
 
   Future<void> _handleNotificationAction(

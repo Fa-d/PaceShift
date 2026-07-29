@@ -43,6 +43,9 @@ class PlannedRuns extends Table {
 @DataClassName('CompletedRunRow')
 class CompletedRuns extends Table {
   IntColumn get id => integer().autoIncrement()();
+  // Two columns reference PlannedRuns, so both need explicit reference names to
+  // keep drift's generated filters unambiguous.
+  @ReferenceName('completedRuns')
   IntColumn get plannedRunId =>
       integer().nullable().references(PlannedRuns, #id, onDelete: KeyAction.setNull)();
   DateTimeColumn get date => dateTime()();
@@ -53,6 +56,15 @@ class CompletedRuns extends Table {
   IntColumn get maxHr => integer().nullable()();
   RealColumn get calories => real().nullable()();
   TextColumn get source => textEnum<RunSource>()();
+
+  /// A planned run this workout *probably* belongs to, when the match was too
+  /// uncertain to make automatically (see `domain/sync/workout_matcher.dart`).
+  /// Set only while `plannedRunId` is null; cleared once the user confirms or
+  /// rejects the suggestion.
+  @ReferenceName('suggestedCompletedRuns')
+  IntColumn get suggestedPlannedRunId => integer()
+      .nullable()
+      .references(PlannedRuns, #id, onDelete: KeyAction.setNull)();
 
   /// The physical activity (run/walk/hike). Only runs count toward running
   /// stats; defaults to `run` for manual entries and pre-migration rows.
@@ -80,6 +92,10 @@ class SettingsRows extends Table {
 
   /// Last successful Health Connect sync (null until first sync).
   DateTimeColumn get lastSyncAt => dateTime().nullable()();
+
+  /// When we last asked the user to connect their health data (null = never
+  /// asked). Drives the one-time post-onboarding connect screen.
+  DateTimeColumn get healthPromptedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

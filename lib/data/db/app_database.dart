@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'paceshift'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +44,18 @@ class AppDatabase extends _$AppDatabase {
                 .go();
             await (update(settingsRows)..where((t) => t.id.equals(0)))
                 .write(const SettingsRowsCompanion(lastSyncAt: Value(null)));
+          }
+          // v5: automatic capture. Settings track whether we've asked to connect
+          // health data; completed runs can carry an unconfirmed match.
+          if (from < 5) {
+            await m.addColumn(settingsRows, settingsRows.healthPromptedAt);
+            await m.addColumn(completedRuns, completedRuns.suggestedPlannedRunId);
+            // Anyone already syncing has effectively answered the question —
+            // don't interrupt them with the connect screen on upgrade.
+            await (update(settingsRows)
+                  ..where((t) => t.id.equals(0) & t.lastSyncAt.isNotNull()))
+                .write(SettingsRowsCompanion(
+                    healthPromptedAt: Value(DateTime.now())));
           }
         },
       );
@@ -151,6 +163,17 @@ class RunsDao extends DatabaseAccessor<AppDatabase> with _$RunsDaoMixin {
   Future<int> insertCompletedRun(CompletedRunsCompanion run) =>
       into(completedRuns).insert(run);
 
+  Future<void> updateCompletedRun(int id, CompletedRunsCompanion changes) =>
+      (update(completedRuns)..where((t) => t.id.equals(id))).write(changes);
+
+  /// Synced runs awaiting a yes/no on a suggested planned-run match.
+  Stream<List<CompletedRunRow>> watchUnconfirmedRuns() {
+    final q = select(completedRuns)
+      ..where((t) => t.suggestedPlannedRunId.isNotNull() & t.plannedRunId.isNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.watch();
+  }
+
   /// Removes all auto-imported (Health Connect) completed runs, leaving manual
   /// entries untouched. Used to re-import cleanly after fixing sync logic.
   Future<int> deleteHealthConnectCompletedRuns() => (delete(completedRuns)
@@ -180,4 +203,10 @@ class SettingsDao extends DatabaseAccessor<AppDatabase> with _$SettingsDaoMixin 
   Future<void> clearLastSync() =>
       (update(settingsRows)..where((t) => t.id.equals(0)))
           .write(const SettingsRowsCompanion(lastSyncAt: Value(null)));
+
+  /// Records that the user has been asked to connect health data, so the
+  /// one-time connect screen doesn't reappear.
+  Future<void> markHealthPrompted(DateTime when) =>
+      (update(settingsRows)..where((t) => t.id.equals(0)))
+          .write(SettingsRowsCompanion(healthPromptedAt: Value(when)));
 }

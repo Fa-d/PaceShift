@@ -88,9 +88,13 @@
 			<string>fetch</string>
 			<string>processing</string>
 		</array>
+		<!-- Must match the uniqueName passed to Workmanager().registerPeriodicTask
+		     (BackgroundTasks.uniquePeriodic) — workmanager_apple registers the
+		     BGTask under that exact string, and an identifier missing from this
+		     list makes BGTaskScheduler.register fail outright. -->
 		<key>BGTaskSchedulerPermittedIdentifiers</key>
 		<array>
-			<string>com.paceshift.app.periodicSync</string>
+			<string>paceshift.periodic</string>
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>

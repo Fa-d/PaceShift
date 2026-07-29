@@ -29,6 +29,14 @@ abstract class AppSettings with _$AppSettings {
 
     /// Display name captured during onboarding (empty = not provided).
     @Default('') String userName,
+
+    /// Last successful health sync (null = never synced). Read-only here: the
+    /// sync repository owns the write, so a stale copy can't clobber it.
+    DateTime? lastSyncAt,
+
+    /// When we last asked the user to connect health data (null = never asked).
+    /// Read-only here, for the same reason as [lastSyncAt].
+    DateTime? healthPromptedAt,
   }) = _AppSettings;
 
   const AppSettings._();

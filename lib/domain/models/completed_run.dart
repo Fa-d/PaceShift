@@ -30,6 +30,10 @@ abstract class CompletedRun with _$CompletedRun {
 
     /// Health Connect record id, used to dedup repeated syncs.
     String? externalId,
+
+    /// A planned run this workout probably belongs to, pending the user's
+    /// confirmation. Only ever set while [plannedRunId] is null.
+    int? suggestedPlannedRunId,
   }) = _CompletedRun;
 
   const CompletedRun._();

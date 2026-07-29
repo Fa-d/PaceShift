@@ -22,8 +22,10 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   Future<void> _syncNow() async {
     if (AppMotion.on(context)) HapticFeedback.lightImpact();
     setState(() => _syncing = true);
-    final result = await ref.read(syncRepositoryProvider).syncNow();
-    ref.invalidate(lastSyncProvider);
+    final result = await syncAndSettle(
+      sync: ref.read(syncRepositoryProvider),
+      scheduler: ref.read(schedulerRepositoryProvider),
+    );
     ref.invalidate(healthAvailableProvider);
     if (!mounted) return;
     setState(() => _syncing = false);
@@ -38,11 +40,13 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
         return '${r.totalKm.toStringAsFixed(1)} km logged across '
             '${r.newRuns} run${r.newRuns == 1 ? '' : 's'}.';
       case SyncStatus.unavailable:
-        return 'Health Connect isn’t available on this device.';
+        return 'No health data source is available on this device.';
       case SyncStatus.permissionDenied:
         return 'Permission denied. Grant access to sync runs.';
       case SyncStatus.noPlan:
         return 'Create a plan first.';
+      case SyncStatus.skipped:
+        return 'You’re up to date.';
       case SyncStatus.error:
         return 'Something went wrong during sync.';
     }
@@ -53,6 +57,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
     final theme = Theme.of(context);
     final available = ref.watch(healthAvailableProvider);
     final lastSync = ref.watch(lastSyncProvider);
+    final sync = ref.watch(syncRepositoryProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sync')),
@@ -69,7 +74,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                     children: [
                       Icon(Icons.watch_rounded, color: theme.colorScheme.primary),
                       const SizedBox(width: 10),
-                      Text('Health Connect', style: theme.textTheme.titleLarge),
+                      Text(sync.providerName, style: theme.textTheme.titleLarge),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -92,19 +97,13 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                       Text('Last sync',
                           style: theme.textTheme.bodyMedium),
                       const Spacer(),
-                      lastSync.when(
-                        loading: () => const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        error: (e, st) => const Text('—'),
-                        data: (when) => Text(
-                          when == null
-                              ? 'Never'
-                              : '${formatDateLabel(when)}, ${formatMinutesOfDay(when.hour * 60 + when.minute)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600),
-                        ),
+                      Text(
+                        lastSync == null
+                            ? 'Never'
+                            : '${formatDateLabel(lastSync)}, '
+                                '${formatMinutesOfDay(lastSync.hour * 60 + lastSync.minute)}',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -124,7 +123,8 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             label: Text(_syncing ? 'Syncing…' : 'Sync now'),
           ),
           const SizedBox(height: 8),
-          if (available.value == false)
+          // Nothing to install on iOS — HealthKit ships with the OS.
+          if (available.value == false && sync.canInstallProvider)
             OutlinedButton.icon(
               onPressed: () =>
                   ref.read(syncRepositoryProvider).installHealthConnect(),
@@ -133,7 +133,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             ),
           const SizedBox(height: 24),
           const SectionHeader('How it works'),
-          const _SetupGuide(),
+          _SetupGuide(canInstallProvider: sync.canInstallProvider),
         ].revealStagger(context),
       ),
     );
@@ -170,16 +170,25 @@ class _StatusRow extends StatelessWidget {
 }
 
 class _SetupGuide extends StatelessWidget {
-  const _SetupGuide();
+  const _SetupGuide({required this.canInstallProvider});
+
+  /// Android needs the Health Connect app; iOS has HealthKit built in.
+  final bool canInstallProvider;
 
   @override
   Widget build(BuildContext context) {
-    const steps = [
-      'Install Health Connect (or use the built-in version on Android 14+).',
-      'Install Samsung Health and pair your watch.',
-      'In Samsung Health, enable syncing to Health Connect.',
-      'Grant PaceShift read access — then tap “Sync now”.',
-    ];
+    final steps = canInstallProvider
+        ? const [
+            'Install Health Connect (or use the built-in version on Android 14+).',
+            'Install your watch app (Samsung Health, Garmin Connect, …) and pair your watch.',
+            'In that app, enable syncing to Health Connect.',
+            'Grant PaceShift read access — new runs then appear on their own.',
+          ]
+        : const [
+            'Record runs with Apple Watch, or any app that writes to Apple Health.',
+            'Open the Health app → Sharing → Apps, and allow PaceShift to read workouts.',
+            'New runs then appear on their own — no logging needed.',
+          ];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

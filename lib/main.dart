@@ -25,7 +25,9 @@ Future<void> main() async {
   final db = AppDatabase();
   await SettingsRepository(db).ensureDefaults();
 
-  // Catch any runs missed while the app was closed.
+  // Catch any runs missed while the app was closed. The foreground sync that
+  // runs once the UI is up (see `PaceShiftApp._bootstrap`) can still recover a
+  // run this pass writes off, and re-runs the rollover when it does.
   await SchedulerRepository(db).runDayRollover();
 
   // Notifications + background polling (best effort — never block startup).

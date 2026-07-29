@@ -1486,6 +1486,19 @@ class $CompletedRunsTable extends CompletedRuns
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       ).withConverter<RunSource>($CompletedRunsTable.$convertersource);
+  static const VerificationMeta _suggestedPlannedRunIdMeta =
+      const VerificationMeta('suggestedPlannedRunId');
+  @override
+  late final GeneratedColumn<int> suggestedPlannedRunId = GeneratedColumn<int>(
+    'suggested_planned_run_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES planned_runs (id) ON DELETE SET NULL',
+    ),
+  );
   @override
   late final GeneratedColumnWithTypeConverter<ActivityType, String>
   activityType = GeneratedColumn<String>(
@@ -1519,6 +1532,7 @@ class $CompletedRunsTable extends CompletedRuns
     maxHr,
     calories,
     source,
+    suggestedPlannedRunId,
     activityType,
     externalId,
   ];
@@ -1605,6 +1619,15 @@ class $CompletedRunsTable extends CompletedRuns
         calories.isAcceptableOrUnknown(data['calories']!, _caloriesMeta),
       );
     }
+    if (data.containsKey('suggested_planned_run_id')) {
+      context.handle(
+        _suggestedPlannedRunIdMeta,
+        suggestedPlannedRunId.isAcceptableOrUnknown(
+          data['suggested_planned_run_id']!,
+          _suggestedPlannedRunIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('external_id')) {
       context.handle(
         _externalIdMeta,
@@ -1662,6 +1685,10 @@ class $CompletedRunsTable extends CompletedRuns
           data['${effectivePrefix}source'],
         )!,
       ),
+      suggestedPlannedRunId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}suggested_planned_run_id'],
+      ),
       activityType: $CompletedRunsTable.$converteractivityType.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -1700,6 +1727,12 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
   final double? calories;
   final RunSource source;
 
+  /// A planned run this workout *probably* belongs to, when the match was too
+  /// uncertain to make automatically (see `domain/sync/workout_matcher.dart`).
+  /// Set only while `plannedRunId` is null; cleared once the user confirms or
+  /// rejects the suggestion.
+  final int? suggestedPlannedRunId;
+
   /// The physical activity (run/walk/hike). Only runs count toward running
   /// stats; defaults to `run` for manual entries and pre-migration rows.
   final ActivityType activityType;
@@ -1717,6 +1750,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     this.maxHr,
     this.calories,
     required this.source,
+    this.suggestedPlannedRunId,
     required this.activityType,
     this.externalId,
   });
@@ -1744,6 +1778,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       map['source'] = Variable<String>(
         $CompletedRunsTable.$convertersource.toSql(source),
       );
+    }
+    if (!nullToAbsent || suggestedPlannedRunId != null) {
+      map['suggested_planned_run_id'] = Variable<int>(suggestedPlannedRunId);
     }
     {
       map['activity_type'] = Variable<String>(
@@ -1776,6 +1813,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           ? const Value.absent()
           : Value(calories),
       source: Value(source),
+      suggestedPlannedRunId: suggestedPlannedRunId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedPlannedRunId),
       activityType: Value(activityType),
       externalId: externalId == null && nullToAbsent
           ? const Value.absent()
@@ -1801,6 +1841,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       source: $CompletedRunsTable.$convertersource.fromJson(
         serializer.fromJson<String>(json['source']),
       ),
+      suggestedPlannedRunId: serializer.fromJson<int?>(
+        json['suggestedPlannedRunId'],
+      ),
       activityType: $CompletedRunsTable.$converteractivityType.fromJson(
         serializer.fromJson<String>(json['activityType']),
       ),
@@ -1823,6 +1866,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       'source': serializer.toJson<String>(
         $CompletedRunsTable.$convertersource.toJson(source),
       ),
+      'suggestedPlannedRunId': serializer.toJson<int?>(suggestedPlannedRunId),
       'activityType': serializer.toJson<String>(
         $CompletedRunsTable.$converteractivityType.toJson(activityType),
       ),
@@ -1841,6 +1885,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     Value<int?> maxHr = const Value.absent(),
     Value<double?> calories = const Value.absent(),
     RunSource? source,
+    Value<int?> suggestedPlannedRunId = const Value.absent(),
     ActivityType? activityType,
     Value<String?> externalId = const Value.absent(),
   }) => CompletedRunRow(
@@ -1854,6 +1899,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     maxHr: maxHr.present ? maxHr.value : this.maxHr,
     calories: calories.present ? calories.value : this.calories,
     source: source ?? this.source,
+    suggestedPlannedRunId: suggestedPlannedRunId.present
+        ? suggestedPlannedRunId.value
+        : this.suggestedPlannedRunId,
     activityType: activityType ?? this.activityType,
     externalId: externalId.present ? externalId.value : this.externalId,
   );
@@ -1877,6 +1925,9 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
       maxHr: data.maxHr.present ? data.maxHr.value : this.maxHr,
       calories: data.calories.present ? data.calories.value : this.calories,
       source: data.source.present ? data.source.value : this.source,
+      suggestedPlannedRunId: data.suggestedPlannedRunId.present
+          ? data.suggestedPlannedRunId.value
+          : this.suggestedPlannedRunId,
       activityType: data.activityType.present
           ? data.activityType.value
           : this.activityType,
@@ -1899,6 +1950,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           ..write('maxHr: $maxHr, ')
           ..write('calories: $calories, ')
           ..write('source: $source, ')
+          ..write('suggestedPlannedRunId: $suggestedPlannedRunId, ')
           ..write('activityType: $activityType, ')
           ..write('externalId: $externalId')
           ..write(')'))
@@ -1917,6 +1969,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
     maxHr,
     calories,
     source,
+    suggestedPlannedRunId,
     activityType,
     externalId,
   );
@@ -1934,6 +1987,7 @@ class CompletedRunRow extends DataClass implements Insertable<CompletedRunRow> {
           other.maxHr == this.maxHr &&
           other.calories == this.calories &&
           other.source == this.source &&
+          other.suggestedPlannedRunId == this.suggestedPlannedRunId &&
           other.activityType == this.activityType &&
           other.externalId == this.externalId);
 }
@@ -1949,6 +2003,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
   final Value<int?> maxHr;
   final Value<double?> calories;
   final Value<RunSource> source;
+  final Value<int?> suggestedPlannedRunId;
   final Value<ActivityType> activityType;
   final Value<String?> externalId;
   const CompletedRunsCompanion({
@@ -1962,6 +2017,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     this.maxHr = const Value.absent(),
     this.calories = const Value.absent(),
     this.source = const Value.absent(),
+    this.suggestedPlannedRunId = const Value.absent(),
     this.activityType = const Value.absent(),
     this.externalId = const Value.absent(),
   });
@@ -1976,6 +2032,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     this.maxHr = const Value.absent(),
     this.calories = const Value.absent(),
     required RunSource source,
+    this.suggestedPlannedRunId = const Value.absent(),
     this.activityType = const Value.absent(),
     this.externalId = const Value.absent(),
   }) : date = Value(date),
@@ -1994,6 +2051,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     Expression<int>? maxHr,
     Expression<double>? calories,
     Expression<String>? source,
+    Expression<int>? suggestedPlannedRunId,
     Expression<String>? activityType,
     Expression<String>? externalId,
   }) {
@@ -2008,6 +2066,8 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
       if (maxHr != null) 'max_hr': maxHr,
       if (calories != null) 'calories': calories,
       if (source != null) 'source': source,
+      if (suggestedPlannedRunId != null)
+        'suggested_planned_run_id': suggestedPlannedRunId,
       if (activityType != null) 'activity_type': activityType,
       if (externalId != null) 'external_id': externalId,
     });
@@ -2024,6 +2084,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
     Value<int?>? maxHr,
     Value<double?>? calories,
     Value<RunSource>? source,
+    Value<int?>? suggestedPlannedRunId,
     Value<ActivityType>? activityType,
     Value<String?>? externalId,
   }) {
@@ -2038,6 +2099,8 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
       maxHr: maxHr ?? this.maxHr,
       calories: calories ?? this.calories,
       source: source ?? this.source,
+      suggestedPlannedRunId:
+          suggestedPlannedRunId ?? this.suggestedPlannedRunId,
       activityType: activityType ?? this.activityType,
       externalId: externalId ?? this.externalId,
     );
@@ -2078,6 +2141,11 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
         $CompletedRunsTable.$convertersource.toSql(source.value),
       );
     }
+    if (suggestedPlannedRunId.present) {
+      map['suggested_planned_run_id'] = Variable<int>(
+        suggestedPlannedRunId.value,
+      );
+    }
     if (activityType.present) {
       map['activity_type'] = Variable<String>(
         $CompletedRunsTable.$converteractivityType.toSql(activityType.value),
@@ -2102,6 +2170,7 @@ class CompletedRunsCompanion extends UpdateCompanion<CompletedRunRow> {
           ..write('maxHr: $maxHr, ')
           ..write('calories: $calories, ')
           ..write('source: $source, ')
+          ..write('suggestedPlannedRunId: $suggestedPlannedRunId, ')
           ..write('activityType: $activityType, ')
           ..write('externalId: $externalId')
           ..write(')'))
@@ -2224,6 +2293,18 @@ class $SettingsRowsTable extends SettingsRows
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _healthPromptedAtMeta = const VerificationMeta(
+    'healthPromptedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> healthPromptedAt =
+      GeneratedColumn<DateTime>(
+        'health_prompted_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2236,6 +2317,7 @@ class $SettingsRowsTable extends SettingsRows
     cloudBackupEnabled,
     userName,
     lastSyncAt,
+    healthPromptedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2322,6 +2404,15 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('health_prompted_at')) {
+      context.handle(
+        _healthPromptedAtMeta,
+        healthPromptedAt.isAcceptableOrUnknown(
+          data['health_prompted_at']!,
+          _healthPromptedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2377,6 +2468,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_sync_at'],
       ),
+      healthPromptedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}health_prompted_at'],
+      ),
     );
   }
 
@@ -2408,6 +2503,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
 
   /// Last successful Health Connect sync (null until first sync).
   final DateTime? lastSyncAt;
+
+  /// When we last asked the user to connect their health data (null = never
+  /// asked). Drives the one-time post-onboarding connect screen.
+  final DateTime? healthPromptedAt;
   const SettingsRow({
     required this.id,
     required this.units,
@@ -2419,6 +2518,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.cloudBackupEnabled,
     required this.userName,
     this.lastSyncAt,
+    this.healthPromptedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2447,6 +2547,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || lastSyncAt != null) {
       map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
     }
+    if (!nullToAbsent || healthPromptedAt != null) {
+      map['health_prompted_at'] = Variable<DateTime>(healthPromptedAt);
+    }
     return map;
   }
 
@@ -2464,6 +2567,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       lastSyncAt: lastSyncAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSyncAt),
+      healthPromptedAt: healthPromptedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(healthPromptedAt),
     );
   }
 
@@ -2495,6 +2601,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       cloudBackupEnabled: serializer.fromJson<bool>(json['cloudBackupEnabled']),
       userName: serializer.fromJson<String>(json['userName']),
       lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
+      healthPromptedAt: serializer.fromJson<DateTime?>(
+        json['healthPromptedAt'],
+      ),
     );
   }
   @override
@@ -2519,6 +2628,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'cloudBackupEnabled': serializer.toJson<bool>(cloudBackupEnabled),
       'userName': serializer.toJson<String>(userName),
       'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
+      'healthPromptedAt': serializer.toJson<DateTime?>(healthPromptedAt),
     };
   }
 
@@ -2533,6 +2643,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? cloudBackupEnabled,
     String? userName,
     Value<DateTime?> lastSyncAt = const Value.absent(),
+    Value<DateTime?> healthPromptedAt = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
     units: units ?? this.units,
@@ -2548,6 +2659,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     cloudBackupEnabled: cloudBackupEnabled ?? this.cloudBackupEnabled,
     userName: userName ?? this.userName,
     lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
+    healthPromptedAt: healthPromptedAt.present
+        ? healthPromptedAt.value
+        : this.healthPromptedAt,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2575,6 +2689,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       lastSyncAt: data.lastSyncAt.present
           ? data.lastSyncAt.value
           : this.lastSyncAt,
+      healthPromptedAt: data.healthPromptedAt.present
+          ? data.healthPromptedAt.value
+          : this.healthPromptedAt,
     );
   }
 
@@ -2590,7 +2707,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('longRunCatchupWindowDays: $longRunCatchupWindowDays, ')
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
           ..write('userName: $userName, ')
-          ..write('lastSyncAt: $lastSyncAt')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('healthPromptedAt: $healthPromptedAt')
           ..write(')'))
         .toString();
   }
@@ -2607,6 +2725,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     cloudBackupEnabled,
     userName,
     lastSyncAt,
+    healthPromptedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2621,7 +2740,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.longRunCatchupWindowDays == this.longRunCatchupWindowDays &&
           other.cloudBackupEnabled == this.cloudBackupEnabled &&
           other.userName == this.userName &&
-          other.lastSyncAt == this.lastSyncAt);
+          other.lastSyncAt == this.lastSyncAt &&
+          other.healthPromptedAt == this.healthPromptedAt);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2635,6 +2755,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> cloudBackupEnabled;
   final Value<String> userName;
   final Value<DateTime?> lastSyncAt;
+  final Value<DateTime?> healthPromptedAt;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.units = const Value.absent(),
@@ -2646,6 +2767,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.cloudBackupEnabled = const Value.absent(),
     this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
+    this.healthPromptedAt = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2658,6 +2780,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     required bool cloudBackupEnabled,
     this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
+    this.healthPromptedAt = const Value.absent(),
   }) : units = Value(units),
        reminderMorningMinutes = Value(reminderMorningMinutes),
        reminderEveningMinutes = Value(reminderEveningMinutes),
@@ -2676,6 +2799,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? cloudBackupEnabled,
     Expression<String>? userName,
     Expression<DateTime>? lastSyncAt,
+    Expression<DateTime>? healthPromptedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2693,6 +2817,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
         'cloud_backup_enabled': cloudBackupEnabled,
       if (userName != null) 'user_name': userName,
       if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
+      if (healthPromptedAt != null) 'health_prompted_at': healthPromptedAt,
     });
   }
 
@@ -2707,6 +2832,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? cloudBackupEnabled,
     Value<String>? userName,
     Value<DateTime?>? lastSyncAt,
+    Value<DateTime?>? healthPromptedAt,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2723,6 +2849,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       cloudBackupEnabled: cloudBackupEnabled ?? this.cloudBackupEnabled,
       userName: userName ?? this.userName,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+      healthPromptedAt: healthPromptedAt ?? this.healthPromptedAt,
     );
   }
 
@@ -2771,6 +2898,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (lastSyncAt.present) {
       map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
     }
+    if (healthPromptedAt.present) {
+      map['health_prompted_at'] = Variable<DateTime>(healthPromptedAt.value);
+    }
     return map;
   }
 
@@ -2786,7 +2916,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('longRunCatchupWindowDays: $longRunCatchupWindowDays, ')
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
           ..write('userName: $userName, ')
-          ..write('lastSyncAt: $lastSyncAt')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('healthPromptedAt: $healthPromptedAt')
           ..write(')'))
         .toString();
   }
@@ -2820,6 +2951,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('planned_runs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'planned_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('completed_runs', kind: UpdateKind.update)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -3269,18 +3407,39 @@ final class $$PlannedRunsTableReferences
   }
 
   static MultiTypedResultKey<$CompletedRunsTable, List<CompletedRunRow>>
-  _completedRunsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+  _completedRunsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.completedRuns,
     aliasName: 'planned_runs__id__completed_runs__planned_run_id',
   );
 
-  $$CompletedRunsTableProcessedTableManager get completedRunsRefs {
+  $$CompletedRunsTableProcessedTableManager get completedRuns {
     final manager = $$CompletedRunsTableTableManager(
       $_db,
       $_db.completedRuns,
     ).filter((f) => f.plannedRunId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_completedRunsRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(_completedRunsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$CompletedRunsTable, List<CompletedRunRow>>
+  _suggestedCompletedRunsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.completedRuns,
+        aliasName: 'planned_runs__id__completed_runs__suggested_planned_run_id',
+      );
+
+  $$CompletedRunsTableProcessedTableManager get suggestedCompletedRuns {
+    final manager = $$CompletedRunsTableTableManager($_db, $_db.completedRuns)
+        .filter(
+          (f) => f.suggestedPlannedRunId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _suggestedCompletedRunsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -3381,7 +3540,7 @@ class $$PlannedRunsTableFilterComposer
     return composer;
   }
 
-  Expression<bool> completedRunsRefs(
+  Expression<bool> completedRuns(
     Expression<bool> Function($$CompletedRunsTableFilterComposer f) f,
   ) {
     final $$CompletedRunsTableFilterComposer composer = $composerBuilder(
@@ -3389,6 +3548,31 @@ class $$PlannedRunsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.completedRuns,
       getReferencedColumn: (t) => t.plannedRunId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompletedRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.completedRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> suggestedCompletedRuns(
+    Expression<bool> Function($$CompletedRunsTableFilterComposer f) f,
+  ) {
+    final $$CompletedRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.completedRuns,
+      getReferencedColumn: (t) => t.suggestedPlannedRunId,
       builder:
           (
             joinBuilder, {
@@ -3582,7 +3766,7 @@ class $$PlannedRunsTableAnnotationComposer
     return composer;
   }
 
-  Expression<T> completedRunsRefs<T extends Object>(
+  Expression<T> completedRuns<T extends Object>(
     Expression<T> Function($$CompletedRunsTableAnnotationComposer a) f,
   ) {
     final $$CompletedRunsTableAnnotationComposer composer = $composerBuilder(
@@ -3590,6 +3774,31 @@ class $$PlannedRunsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.completedRuns,
       getReferencedColumn: (t) => t.plannedRunId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompletedRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.completedRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> suggestedCompletedRuns<T extends Object>(
+    Expression<T> Function($$CompletedRunsTableAnnotationComposer a) f,
+  ) {
+    final $$CompletedRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.completedRuns,
+      getReferencedColumn: (t) => t.suggestedPlannedRunId,
       builder:
           (
             joinBuilder, {
@@ -3621,7 +3830,11 @@ class $$PlannedRunsTableTableManager
           $$PlannedRunsTableUpdateCompanionBuilder,
           (PlannedRunRow, $$PlannedRunsTableReferences),
           PlannedRunRow,
-          PrefetchHooks Function({bool planId, bool completedRunsRefs})
+          PrefetchHooks Function({
+            bool planId,
+            bool completedRuns,
+            bool suggestedCompletedRuns,
+          })
         > {
   $$PlannedRunsTableTableManager(_$AppDatabase db, $PlannedRunsTable table)
     : super(
@@ -3702,71 +3915,100 @@ class $$PlannedRunsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({planId = false, completedRunsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (completedRunsRefs) db.completedRuns,
-              ],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (planId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.planId,
-                                referencedTable: $$PlannedRunsTableReferences
-                                    ._planIdTable(db),
-                                referencedColumn: $$PlannedRunsTableReferences
-                                    ._planIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                planId = false,
+                completedRuns = false,
+                suggestedCompletedRuns = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (completedRuns) db.completedRuns,
+                    if (suggestedCompletedRuns) db.completedRuns,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (planId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.planId,
+                                    referencedTable:
+                                        $$PlannedRunsTableReferences
+                                            ._planIdTable(db),
+                                    referencedColumn:
+                                        $$PlannedRunsTableReferences
+                                            ._planIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (completedRuns)
+                        await $_getPrefetchedData<
+                          PlannedRunRow,
+                          $PlannedRunsTable,
+                          CompletedRunRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PlannedRunsTableReferences
+                              ._completedRunsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PlannedRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).completedRuns,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.plannedRunId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (suggestedCompletedRuns)
+                        await $_getPrefetchedData<
+                          PlannedRunRow,
+                          $PlannedRunsTable,
+                          CompletedRunRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PlannedRunsTableReferences
+                              ._suggestedCompletedRunsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PlannedRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).suggestedCompletedRuns,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.suggestedPlannedRunId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (completedRunsRefs)
-                    await $_getPrefetchedData<
-                      PlannedRunRow,
-                      $PlannedRunsTable,
-                      CompletedRunRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$PlannedRunsTableReferences
-                          ._completedRunsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$PlannedRunsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).completedRunsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.plannedRunId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3783,7 +4025,11 @@ typedef $$PlannedRunsTableProcessedTableManager =
       $$PlannedRunsTableUpdateCompanionBuilder,
       (PlannedRunRow, $$PlannedRunsTableReferences),
       PlannedRunRow,
-      PrefetchHooks Function({bool planId, bool completedRunsRefs})
+      PrefetchHooks Function({
+        bool planId,
+        bool completedRuns,
+        bool suggestedCompletedRuns,
+      })
     >;
 typedef $$CompletedRunsTableCreateCompanionBuilder =
     CompletedRunsCompanion Function({
@@ -3797,6 +4043,7 @@ typedef $$CompletedRunsTableCreateCompanionBuilder =
       Value<int?> maxHr,
       Value<double?> calories,
       required RunSource source,
+      Value<int?> suggestedPlannedRunId,
       Value<ActivityType> activityType,
       Value<String?> externalId,
     });
@@ -3812,6 +4059,7 @@ typedef $$CompletedRunsTableUpdateCompanionBuilder =
       Value<int?> maxHr,
       Value<double?> calories,
       Value<RunSource> source,
+      Value<int?> suggestedPlannedRunId,
       Value<ActivityType> activityType,
       Value<String?> externalId,
     });
@@ -3837,6 +4085,27 @@ final class $$CompletedRunsTableReferences
       $_db.plannedRuns,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_plannedRunIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PlannedRunsTable _suggestedPlannedRunIdTable(_$AppDatabase db) =>
+      db.plannedRuns.createAlias(
+        'completed_runs__suggested_planned_run_id__planned_runs__id',
+      );
+
+  $$PlannedRunsTableProcessedTableManager? get suggestedPlannedRunId {
+    final $_column = $_itemColumn<int>('suggested_planned_run_id');
+    if ($_column == null) return null;
+    final manager = $$PlannedRunsTableTableManager(
+      $_db,
+      $_db.plannedRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(
+      _suggestedPlannedRunIdTable($_db),
+    );
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -3914,6 +4183,29 @@ class $$CompletedRunsTableFilterComposer
     final $$PlannedRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.plannedRunId,
+      referencedTable: $db.plannedRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlannedRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.plannedRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlannedRunsTableFilterComposer get suggestedPlannedRunId {
+    final $$PlannedRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.suggestedPlannedRunId,
       referencedTable: $db.plannedRuns,
       getReferencedColumn: (t) => t.id,
       builder:
@@ -4020,6 +4312,29 @@ class $$CompletedRunsTableOrderingComposer
     );
     return composer;
   }
+
+  $$PlannedRunsTableOrderingComposer get suggestedPlannedRunId {
+    final $$PlannedRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.suggestedPlannedRunId,
+      referencedTable: $db.plannedRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlannedRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.plannedRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$CompletedRunsTableAnnotationComposer
@@ -4097,6 +4412,29 @@ class $$CompletedRunsTableAnnotationComposer
     );
     return composer;
   }
+
+  $$PlannedRunsTableAnnotationComposer get suggestedPlannedRunId {
+    final $$PlannedRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.suggestedPlannedRunId,
+      referencedTable: $db.plannedRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlannedRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.plannedRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$CompletedRunsTableTableManager
@@ -4112,7 +4450,10 @@ class $$CompletedRunsTableTableManager
           $$CompletedRunsTableUpdateCompanionBuilder,
           (CompletedRunRow, $$CompletedRunsTableReferences),
           CompletedRunRow,
-          PrefetchHooks Function({bool plannedRunId})
+          PrefetchHooks Function({
+            bool plannedRunId,
+            bool suggestedPlannedRunId,
+          })
         > {
   $$CompletedRunsTableTableManager(_$AppDatabase db, $CompletedRunsTable table)
     : super(
@@ -4137,6 +4478,7 @@ class $$CompletedRunsTableTableManager
                 Value<int?> maxHr = const Value.absent(),
                 Value<double?> calories = const Value.absent(),
                 Value<RunSource> source = const Value.absent(),
+                Value<int?> suggestedPlannedRunId = const Value.absent(),
                 Value<ActivityType> activityType = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
               }) => CompletedRunsCompanion(
@@ -4150,6 +4492,7 @@ class $$CompletedRunsTableTableManager
                 maxHr: maxHr,
                 calories: calories,
                 source: source,
+                suggestedPlannedRunId: suggestedPlannedRunId,
                 activityType: activityType,
                 externalId: externalId,
               ),
@@ -4165,6 +4508,7 @@ class $$CompletedRunsTableTableManager
                 Value<int?> maxHr = const Value.absent(),
                 Value<double?> calories = const Value.absent(),
                 required RunSource source,
+                Value<int?> suggestedPlannedRunId = const Value.absent(),
                 Value<ActivityType> activityType = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
               }) => CompletedRunsCompanion.insert(
@@ -4178,6 +4522,7 @@ class $$CompletedRunsTableTableManager
                 maxHr: maxHr,
                 calories: calories,
                 source: source,
+                suggestedPlannedRunId: suggestedPlannedRunId,
                 activityType: activityType,
                 externalId: externalId,
               ),
@@ -4189,47 +4534,65 @@ class $$CompletedRunsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({plannedRunId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (plannedRunId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.plannedRunId,
-                                referencedTable: $$CompletedRunsTableReferences
-                                    ._plannedRunIdTable(db),
-                                referencedColumn: $$CompletedRunsTableReferences
-                                    ._plannedRunIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({plannedRunId = false, suggestedPlannedRunId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (plannedRunId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.plannedRunId,
+                                    referencedTable:
+                                        $$CompletedRunsTableReferences
+                                            ._plannedRunIdTable(db),
+                                    referencedColumn:
+                                        $$CompletedRunsTableReferences
+                                            ._plannedRunIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (suggestedPlannedRunId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.suggestedPlannedRunId,
+                                    referencedTable:
+                                        $$CompletedRunsTableReferences
+                                            ._suggestedPlannedRunIdTable(db),
+                                    referencedColumn:
+                                        $$CompletedRunsTableReferences
+                                            ._suggestedPlannedRunIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -4246,7 +4609,7 @@ typedef $$CompletedRunsTableProcessedTableManager =
       $$CompletedRunsTableUpdateCompanionBuilder,
       (CompletedRunRow, $$CompletedRunsTableReferences),
       CompletedRunRow,
-      PrefetchHooks Function({bool plannedRunId})
+      PrefetchHooks Function({bool plannedRunId, bool suggestedPlannedRunId})
     >;
 typedef $$SettingsRowsTableCreateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -4260,6 +4623,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       required bool cloudBackupEnabled,
       Value<String> userName,
       Value<DateTime?> lastSyncAt,
+      Value<DateTime?> healthPromptedAt,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -4273,6 +4637,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<bool> cloudBackupEnabled,
       Value<String> userName,
       Value<DateTime?> lastSyncAt,
+      Value<DateTime?> healthPromptedAt,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -4335,6 +4700,11 @@ class $$SettingsRowsTableFilterComposer
     column: $table.lastSyncAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<DateTime> get healthPromptedAt => $composableBuilder(
+    column: $table.healthPromptedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsRowsTableOrderingComposer
@@ -4395,6 +4765,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.lastSyncAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get healthPromptedAt => $composableBuilder(
+    column: $table.healthPromptedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -4450,6 +4825,11 @@ class $$SettingsRowsTableAnnotationComposer
     column: $table.lastSyncAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get healthPromptedAt => $composableBuilder(
+    column: $table.healthPromptedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsRowsTableTableManager
@@ -4494,6 +4874,7 @@ class $$SettingsRowsTableTableManager
                 Value<bool> cloudBackupEnabled = const Value.absent(),
                 Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<DateTime?> healthPromptedAt = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 units: units,
@@ -4505,6 +4886,7 @@ class $$SettingsRowsTableTableManager
                 cloudBackupEnabled: cloudBackupEnabled,
                 userName: userName,
                 lastSyncAt: lastSyncAt,
+                healthPromptedAt: healthPromptedAt,
               ),
           createCompanionCallback:
               ({
@@ -4518,6 +4900,7 @@ class $$SettingsRowsTableTableManager
                 required bool cloudBackupEnabled,
                 Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<DateTime?> healthPromptedAt = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 units: units,
@@ -4529,6 +4912,7 @@ class $$SettingsRowsTableTableManager
                 cloudBackupEnabled: cloudBackupEnabled,
                 userName: userName,
                 lastSyncAt: lastSyncAt,
+                healthPromptedAt: healthPromptedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

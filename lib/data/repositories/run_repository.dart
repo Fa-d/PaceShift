@@ -87,4 +87,54 @@ class RunRepository {
 
   Future<void> updateRunStatus(int runId, RunStatus status) =>
       _runs.updatePlannedRun(runId, PlannedRunsCompanion(status: Value(status)));
+
+  // ---- Reconciling synced runs ----
+
+  /// Synced runs carrying a suggested planned-run match the user hasn't ruled on.
+  Stream<List<CompletedRun>> watchUnconfirmedRuns() => _runs
+      .watchUnconfirmedRuns()
+      .map((rows) => rows.map((r) => r.toDomain()).toList());
+
+  /// Accepts a suggested match: links the completed run to the planned run and
+  /// marks it done.
+  Future<void> confirmSuggestedMatch(CompletedRun run) async {
+    final plannedRunId = run.suggestedPlannedRunId;
+    if (plannedRunId == null) return;
+    await _db.transaction(() async {
+      await _runs.updateCompletedRun(
+        run.id,
+        CompletedRunsCompanion(
+          plannedRunId: Value(plannedRunId),
+          suggestedPlannedRunId: const Value(null),
+        ),
+      );
+      await _runs.updatePlannedRun(
+        plannedRunId,
+        const PlannedRunsCompanion(status: Value(RunStatus.completed)),
+      );
+    });
+  }
+
+  /// Rejects a suggested match — the workout stays as an unattached extra run.
+  Future<void> rejectSuggestedMatch(int completedRunId) => _runs.updateCompletedRun(
+        completedRunId,
+        const CompletedRunsCompanion(suggestedPlannedRunId: Value(null)),
+      );
+
+  /// Undoes an automatic match: unlinks the completed run and reopens the
+  /// planned run so the engine can reschedule it.
+  Future<void> detachCompletedRun(CompletedRun run) async {
+    final plannedRunId = run.plannedRunId;
+    if (plannedRunId == null) return;
+    await _db.transaction(() async {
+      await _runs.updateCompletedRun(
+        run.id,
+        const CompletedRunsCompanion(plannedRunId: Value(null)),
+      );
+      await _runs.updatePlannedRun(
+        plannedRunId,
+        const PlannedRunsCompanion(status: Value(RunStatus.pending)),
+      );
+    });
+  }
 }

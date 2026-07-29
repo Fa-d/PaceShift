@@ -29,4 +29,9 @@ class SettingsRepository {
   Future<void> markSynced(DateTime when) => _dao.updateLastSync(when);
 
   Future<DateTime?> lastSync() async => (await _dao.getSettings())?.lastSyncAt;
+
+  /// Records that we've asked the user to connect health data, so the one-time
+  /// connect screen doesn't reappear.
+  Future<void> markHealthPrompted() =>
+      _dao.markHealthPrompted(DateTime.now());
 }

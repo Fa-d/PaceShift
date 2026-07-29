@@ -110,6 +110,7 @@ extension CompletedRunRowMapper on CompletedRunRow {
         source: source,
         activityType: activityType,
         externalId: externalId,
+        suggestedPlannedRunId: suggestedPlannedRunId,
       );
 }
 
@@ -128,6 +129,7 @@ extension CompletedRunToCompanion on CompletedRun {
         source: Value(source),
         activityType: Value(activityType),
         externalId: Value(externalId),
+        suggestedPlannedRunId: Value(suggestedPlannedRunId),
       );
 }
 
@@ -141,10 +143,16 @@ extension SettingsRowMapper on SettingsRow {
         longRunCatchupWindowDays: longRunCatchupWindowDays,
         cloudBackupEnabled: cloudBackupEnabled,
         userName: userName,
+        lastSyncAt: lastSyncAt,
+        healthPromptedAt: healthPromptedAt,
       );
 }
 
 extension SettingsToCompanion on AppSettings {
+  /// Deliberately omits `lastSyncAt`/`healthPromptedAt`: this companion is used
+  /// for an upsert whenever *any* setting changes, and a screen holding a stale
+  /// [AppSettings] would otherwise rewind the sync cursor. Those two columns are
+  /// written only by `SettingsDao.updateLastSync`/`markHealthPrompted`.
   SettingsRowsCompanion toCompanion() => SettingsRowsCompanion(
         id: const Value(0),
         units: Value(units),

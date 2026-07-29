@@ -25,14 +25,16 @@ class BackgroundService {
     await Workmanager().initialize(callbackDispatcher);
   }
 
-  /// Registers the periodic worker (every ~6h, network-connected).
+  /// Registers the periodic worker (every ~6h).
+  ///
+  /// Deliberately unconstrained: the health store is a **local** database, so
+  /// requiring a network connection would just skip syncs offline for no gain.
   Future<void> registerPeriodicSync() async {
     await Workmanager().registerPeriodicTask(
       BackgroundTasks.uniquePeriodic,
       BackgroundTasks.periodicSync,
       frequency: const Duration(hours: 6),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-      constraints: Constraints(networkType: NetworkType.connected),
     );
   }
 
@@ -45,14 +47,17 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     final db = AppDatabase();
     try {
-      // 1) Roll the plan forward so any missed runs are redistributed.
-      await SchedulerRepository(db).runDayRollover();
-
-      // 2) Pull new workouts from Health Connect (best effort).
+      // 1) Import first. Order matters: the rollover marks past pending runs as
+      // missed and redistributes their load, and a missed run is a much weaker
+      // match candidate. Syncing first means a run the athlete actually did
+      // yesterday is already attached by the time the engine looks at it.
       final settings =
           await SettingsRepository(db).getSettings().catchError((_) => const AppSettings());
       final sync = SyncRepository(db, HealthService());
-      final result = await sync.syncNow();
+      final result = await sync.syncNow(trigger: SyncTrigger.automatic);
+
+      // 2) Now roll the plan forward over whatever genuinely wasn't done.
+      await SchedulerRepository(db).runDayRollover();
 
       // 3) Confirm any newly logged runs.
       if (result.isSuccess && result.newRuns > 0) {

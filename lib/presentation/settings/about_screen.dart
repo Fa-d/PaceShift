@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme.dart';
+import '../../core/design.dart';
+import '../widgets/common.dart';
 import 'widgets/settings_section.dart';
 
 /// App identity + the medical disclaimer (moved off the Settings hub).
@@ -17,23 +18,15 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('About')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+            Space.screenH, Space.xl, Space.screenH, Space.screenBottom),
         children: [
           Column(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppTheme.ember.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.directions_run_rounded,
-                    color: AppTheme.ember, size: 34),
-              ),
-              const SizedBox(height: 12),
+              const IconChip(icon: Icons.directions_run_rounded, size: 64),
+              const SizedBox(height: Space.md),
               Text('PaceShift', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 2),
+              const SizedBox(height: Space.xs),
               Text(
                 'Version $_version',
                 style: theme.textTheme.bodySmall
@@ -41,12 +34,12 @@ class AboutScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: Space.xl),
           SettingsSection(
             title: 'Legal',
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Space.lg),
                 child: Text(
                   'PaceShift is a training aid, not medical advice. Listen to your '
                   'body and consult a healthcare professional before starting or '

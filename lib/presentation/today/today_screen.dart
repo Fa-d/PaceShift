@@ -596,8 +596,8 @@ class _WeekGlance extends ConsumerWidget {
                   value: doneKm,
                   format: (n) =>
                       '${n.round()} / ${plannedKm.toStringAsFixed(0)} km',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppTheme.ember, fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: theme.colorScheme.primary),
                 ),
               ],
             ),
@@ -613,7 +613,7 @@ class _WeekGlance extends ConsumerWidget {
                   value: v,
                   minHeight: 10,
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  color: AppTheme.ember,
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ),
@@ -653,8 +653,8 @@ class _CoachBriefingState extends ConsumerState<_CoachBriefing> {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    color: AppTheme.ember, size: 20),
+                Icon(Icons.auto_awesome_rounded,
+                    color: theme.colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
                 Text('Coach’s briefing', style: theme.textTheme.titleMedium),
               ],

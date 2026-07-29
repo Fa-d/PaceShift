@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 
-import '../../core/theme.dart';
+import '../../core/design.dart';
 import '../../data/api/genui_models.dart';
 import '../widgets/common.dart';
 
@@ -161,7 +161,7 @@ CatalogItem _column() => CatalogItem(
           children: [
             for (final id in ids)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: Space.sm),
                 child: ctx.buildChild(id),
               ),
           ],
@@ -214,15 +214,18 @@ CatalogItem _chip() => CatalogItem(
         return Align(
           alignment: Alignment.centerLeft,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+                horizontal: Space.md, vertical: Space.xs),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(20),
+              color: color.tint,
+              borderRadius: AppRadius.pillAll,
             ),
             child: Text(
               _s(d, 'label') ?? '',
-              style: TextStyle(
-                  color: color, fontWeight: FontWeight.w600, fontSize: 12),
+              style: Theme.of(ctx.buildContext)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: color),
             ),
           ),
         );
@@ -233,17 +236,17 @@ CatalogItem _banner() => CatalogItem(
       name: PaceComponents.banner,
       dataSchema: S.object(properties: {'text': S.string()}),
       widgetBuilder: (ctx) {
-        final color = _toneColor(ctx.buildContext, 'caution') ?? AppTheme.ember;
+        final theme = Theme.of(ctx.buildContext);
+        final color = theme.colorScheme.warning;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.swap_horiz_rounded, size: 16, color: color),
-            const SizedBox(width: 4),
+            const SizedBox(width: Space.xs),
             Flexible(
               child: Text(
                 _s(_data(ctx), 'text') ?? '',
-                style: TextStyle(
-                    fontSize: 12, color: color, fontWeight: FontWeight.w500),
+                style: theme.textTheme.labelSmall?.copyWith(color: color),
               ),
             ),
           ],
@@ -267,9 +270,9 @@ CatalogItem _runCard(void Function(GenUiAction) onAction) => CatalogItem(
         return Card(
           elevation: 0,
           color: scheme.surfaceContainerLow,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           child: ListTile(
-            leading: const Icon(Icons.directions_run_rounded, color: AppTheme.ember),
+            leading: Icon(Icons.directions_run_rounded, color: scheme.primary),
             title: Text(_s(d, 'title') ?? 'Run'),
             subtitle: _s(d, 'subtitle') == null ? null : Text(_s(d, 'subtitle')!),
             trailing: status == null
@@ -338,9 +341,9 @@ CatalogItem _button(void Function(GenUiAction) onAction) => CatalogItem(
 Color? _toneColor(BuildContext context, String? tone) {
   final scheme = Theme.of(context).colorScheme;
   return switch (tone) {
-    'positive' => const Color(0xFF2E7D32),
-    'caution' => const Color(0xFFB26A00),
-    'critical' => scheme.error,
+    'positive' => scheme.success,
+    'caution' => scheme.warning,
+    'critical' => scheme.danger,
     'neutral' => scheme.onSurfaceVariant,
     _ => null,
   };

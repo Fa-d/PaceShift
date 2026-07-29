@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme.dart';
+import '../../core/design.dart';
 import '../genui/genui_surface_view.dart';
 import '../widgets/pro_gate.dart';
 
@@ -42,8 +42,8 @@ class CoachChatSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.psychology_rounded, color: AppTheme.ember),
-              const SizedBox(width: 8),
+              Icon(Icons.psychology_rounded, color: theme.colorScheme.primary),
+              const SizedBox(width: Space.sm),
               Text('Ask your coach', style: theme.textTheme.titleLarge),
               const Spacer(),
               IconButton(

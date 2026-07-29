@@ -4,8 +4,8 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/design.dart';
 import '../../core/motion.dart';
-import '../../core/theme.dart';
 
 /// A one-shot celebratory flourish: a confetti burst plus an elastic check-pop,
 /// rendered in the app [Overlay] so it floats above the current screen.
@@ -41,16 +41,18 @@ class _CelebrationOverlay extends StatelessWidget {
 
   final ConfettiController controller;
 
-  static const _colors = [
-    AppTheme.ember,
-    Color(0xFF2BB673),
-    Color(0xFF3A7BD5),
-    Color(0xFFE0A800),
-    Color(0xFF8A63D2),
-  ];
+  /// Confetti in the app's own accent language rather than five loose hexes.
+  static List<Color> _colors(ColorScheme scheme) => [
+        scheme.primary,
+        scheme.success,
+        scheme.info,
+        scheme.warning,
+        scheme.accentCool,
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return IgnorePointer(
       child: Stack(
         children: [
@@ -65,7 +67,7 @@ class _CelebrationOverlay extends StatelessWidget {
               maxBlastForce: 24,
               gravity: 0.3,
               shouldLoop: false,
-              colors: _colors,
+              colors: _colors(scheme),
             ),
           ),
           Center(
@@ -73,18 +75,18 @@ class _CelebrationOverlay extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: AppTheme.ember,
+                color: scheme.primary,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.ember.withValues(alpha: 0.4),
-                    blurRadius: 24,
+                    color: scheme.primary.withValues(alpha: 0.4),
+                    blurRadius: Space.xl,
                     spreadRadius: 2,
                   ),
                 ],
               ),
-              child: const Icon(Icons.check_rounded,
-                  color: Colors.white, size: 56),
+              child: Icon(Icons.check_rounded,
+                  color: scheme.onPrimary, size: 56),
             )
                 .animate()
                 .scaleXY(

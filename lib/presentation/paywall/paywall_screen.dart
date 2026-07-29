@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design.dart';
 import '../../core/motion.dart';
-import '../../core/theme.dart';
 import '../providers/auth_providers.dart';
 import '../auth/sign_in_screen.dart';
+import '../widgets/common.dart';
 
 /// One Pro benefit row.
 class _Benefit {
@@ -14,17 +15,30 @@ class _Benefit {
   final String subtitle;
 }
 
+/// What Pro actually unlocks.
+///
+/// This list used to advertise five things and gate one. The adaptive engine,
+/// watch sync, stats, predictions and pace-based workouts all run for free —
+/// they are the core loop, and gating the loop is what made the product feel
+/// like a bait-and-switch. Only these two are behind the wall, so only these
+/// two are sold.
 const _benefits = <_Benefit>[
-  _Benefit(Icons.auto_fix_high_rounded, 'Adaptive engine',
-      'Miss a run and PaceShift safely reshuffles your week'),
-  _Benefit(Icons.watch_rounded, 'Watch sync',
-      'Auto-import runs from Health Connect / HealthKit'),
-  _Benefit(Icons.insights_rounded, 'Full stats & predictions',
-      'Readiness dial, charts, and your predicted finish time'),
-  _Benefit(Icons.speed_rounded, 'Pace-based workouts',
-      'Goal-time targeting with intervals & tempo sessions'),
   _Benefit(Icons.psychology_rounded, 'AI coaching',
-      'Plain-language explanations of every plan change'),
+      'Ask your coach anything, and get every plan change explained'),
+  _Benefit(Icons.cloud_done_rounded, 'Cloud backup & sync',
+      'Your plan and history, safe and on every device you own'),
+];
+
+/// What everyone gets, stated plainly so the wall never reads as a hostage
+/// note. Naming the free features is also the honest answer to "what am I
+/// actually paying for?".
+const _included = <_Benefit>[
+  _Benefit(Icons.auto_fix_high_rounded, 'The adaptive engine',
+      'Miss a run and your week reshuffles safely — always free'),
+  _Benefit(Icons.watch_rounded, 'Automatic run capture',
+      'Runs import themselves from Health Connect / HealthKit — always free'),
+  _Benefit(Icons.insights_rounded, 'Stats, readiness & predictions',
+      'Charts, streaks and your predicted finish — always free'),
 ];
 
 /// The Pro upsell. The actual purchase is delegated to [onSubscribe] so this
@@ -46,7 +60,9 @@ class PaywallScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final signedIn = ref.watch(isSignedInProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('PaceShift Pro')),
       body: SafeArea(
@@ -54,92 +70,70 @@ class PaywallScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                padding: const EdgeInsets.fromLTRB(
+                    Space.screenH, Space.lg, Space.screenH, Space.sm),
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppTheme.ember.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Icon(Icons.bolt_rounded,
-                        color: AppTheme.ember, size: 36),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Train smarter, adapt safely',
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
+                  const IconChip(icon: Icons.bolt_rounded, size: 64),
+                  const SizedBox(height: Space.lg),
+                  Text('Coaching and backup',
+                      style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: Space.xs),
                   Text(
-                    'Unlock the adaptive engine and everything that makes your '
-                    'plan respond to real life.',
+                    'Your training already adapts for free. Pro adds a coach '
+                    'that explains it, and a backup so you never lose it.',
                     style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 20),
-                  ..._benefits.map((b) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(b.icon, color: AppTheme.ember),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(b.title,
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(fontWeight: FontWeight.w600)),
-                                  Text(b.subtitle,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                          color:
-                                              theme.colorScheme.onSurfaceVariant)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                  const SizedBox(height: Space.xl),
+                  ..._benefits.map((b) => FeatureRow(
+                        icon: b.icon,
+                        title: b.title,
+                        description: b.subtitle,
+                      )),
+                  const SizedBox(height: Space.xl),
+                  const SectionHeader('Free, and staying free'),
+                  ..._included.map((b) => FeatureRow(
+                        icon: b.icon,
+                        title: b.title,
+                        description: b.subtitle,
+                        color: scheme.onSurfaceVariant,
                       )),
                 ].revealStagger(context),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              padding: const EdgeInsets.fromLTRB(
+                  Space.screenH, 0, Space.screenH, Space.sm),
               child: Column(
                 children: [
                   if (!signedIn)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: Space.sm),
                       child: Text(
                         'Sign in first so your subscription follows your account.',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.error),
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ),
                   FilledButton(
-                    onPressed: busy
-                        ? null
-                        : () async {
-                            if (!signedIn) {
-                              await showSignIn(context);
-                              return;
-                            }
-                            if (context.mounted) await onSubscribe(context, ref);
-                          },
+                    onPressed: busy ? null : () => _start(context, ref, signedIn),
                     child: busy
                         ? const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(priceLabel == null
-                            ? 'Start 7-day free trial'
-                            : 'Start free trial · $priceLabel'),
+                        // The label must describe what the tap does. When
+                        // signed out this button opens sign-in, so promising a
+                        // trial it can't start was a dead end.
+                        : Text(!signedIn
+                            ? 'Sign in to continue'
+                            : priceLabel == null
+                                ? 'Start 7-day free trial'
+                                : 'Start free trial · $priceLabel'),
                   ),
                   TextButton(
-                    onPressed:
-                        busy ? null : () => onRestore(context, ref),
+                    onPressed: busy ? null : () => onRestore(context, ref),
                     child: const Text('Restore purchases'),
                   ),
                 ],
@@ -149,5 +143,17 @@ class PaywallScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Signing in is a step *towards* subscribing, not a substitute for it — so
+  /// a successful sign-in continues straight into the purchase rather than
+  /// silently returning the user to the paywall.
+  Future<void> _start(
+      BuildContext context, WidgetRef ref, bool signedIn) async {
+    if (!signedIn) {
+      await showSignIn(context);
+      if (!context.mounted || !ref.read(isSignedInProvider)) return;
+    }
+    if (context.mounted) await onSubscribe(context, ref);
   }
 }

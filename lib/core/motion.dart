@@ -74,23 +74,3 @@ CustomTransitionPage<T> sharedAxisPage<T>({
     ),
   );
 }
-
-/// A go_router page that cross-fades through the background (fade-through).
-CustomTransitionPage<T> fadeThroughPage<T>({
-  required LocalKey key,
-  required Widget child,
-}) {
-  return CustomTransitionPage<T>(
-    key: key,
-    child: child,
-    transitionDuration: AppMotion.medium,
-    reverseTransitionDuration: AppMotion.medium,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-        FadeThroughTransition(
-      animation: animation,
-      secondaryAnimation: secondaryAnimation,
-      fillColor: Theme.of(context).scaffoldBackgroundColor,
-      child: child,
-    ),
-  );
-}

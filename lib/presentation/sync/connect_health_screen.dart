@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme.dart';
+import '../../core/design.dart';
 import '../providers/providers.dart';
+import '../widgets/common.dart';
 
 /// One-time "connect your health data" step, shown straight after the plan is
 /// generated (spec: automatic capture).
@@ -74,7 +75,8 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          padding: const EdgeInsets.fromLTRB(
+              Space.xl, Space.xl, Space.xl, Space.xl),
           child: Column(
             children: <Widget>[
               const Spacer(flex: 2),
@@ -82,41 +84,41 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  color: AppTheme.slate,
-                  borderRadius: BorderRadius.circular(26),
+                  color: scheme.secondary,
+                  borderRadius: AppRadius.lgAll,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.watch_rounded,
-                    size: 52, color: Colors.white),
+                child: Icon(Icons.watch_rounded,
+                    size: 52, color: scheme.onSecondary),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: Space.xl),
               Text('Your plan is ready',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.displaySmall),
-              const SizedBox(height: 10),
+              const SizedBox(height: Space.sm),
               Text(
                 'Now let it keep itself up to date.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 28),
-              _Benefit(
+              const SizedBox(height: Space.xl),
+              const FeatureRow(
                 icon: Icons.bolt_rounded,
-                text: 'Your watch already records your runs. Connect once and '
-                    'they land here on their own.',
+                title: 'Runs arrive on their own',
+                description: 'Your watch already records them. Connect once '
+                    'and they land here.',
               ),
-              const SizedBox(height: 14),
-              _Benefit(
+              const FeatureRow(
                 icon: Icons.autorenew_rounded,
-                text: 'PaceShift sees what you actually did, so it adapts '
-                    'without you telling it anything.',
+                title: 'Your plan adapts to reality',
+                description: 'PaceShift sees what you actually did, without '
+                    'you telling it anything.',
               ),
-              const SizedBox(height: 14),
-              const _Benefit(
+              const FeatureRow(
                 icon: Icons.lock_rounded,
-                text: 'Read-only, and it stays on your phone. You can revoke '
-                    'access any time.',
+                title: 'Read-only, stays on your phone',
+                description: 'You can revoke access at any time.',
               ),
               const Spacer(flex: 3),
               if (needsInstall) ...[
@@ -125,7 +127,7 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
                   icon: const Icon(Icons.download_rounded),
                   label: const Text('Install Health Connect'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: Space.sm),
                 Text(
                   'Health Connect isn’t set up on this device yet.',
                   textAlign: TextAlign.center,
@@ -142,7 +144,7 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : Text('Connect to ${sync.providerName}'),
                 ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.sm),
               TextButton(
                 onPressed: _busy ? null : _dismiss,
                 child: const Text('Not now — I’ll log runs myself'),
@@ -154,39 +156,6 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Benefit extends StatelessWidget {
-  const _Benefit({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppTheme.ember.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppTheme.ember, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 7),
-            child: Text(text, style: theme.textTheme.bodyMedium),
-          ),
-        ),
-      ],
     );
   }
 }

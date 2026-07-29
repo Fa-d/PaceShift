@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:genui/genui.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme.dart';
+import '../../core/design.dart';
 import '../../domain/models/enums.dart';
 import '../providers/auth_providers.dart';
 import '../providers/providers.dart';
@@ -248,11 +248,10 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
                       const InputDecoration(hintText: 'Type a question…'),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.sm),
               IconButton.filled(
                 onPressed: _busy ? null : _send,
                 icon: const Icon(Icons.send_rounded),
-                color: AppTheme.ember,
               ),
             ],
           ),

@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/formatting.dart';
-import '../../core/theme.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/plan_generator/plan_input.dart';
 import '../providers/providers.dart';
+import '../widgets/common.dart';
 
 /// First-run experience: a welcoming intro followed by a guided, one-question-
 /// per-step wizard that collects race details and generates the plan (spec §8.1).
@@ -317,7 +317,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: AppTheme.slate,
+              color: scheme.secondary,
               borderRadius: BorderRadius.circular(26),
             ),
             alignment: Alignment.center,
@@ -337,19 +337,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 28),
-          const _FeatureRow(
+          const FeatureRow(
             icon: Icons.flag_rounded,
-            text: 'Your race date stays fixed — the anchor never moves.',
+            title: 'Your race date never moves',
+            description: 'It is the anchor everything else bends around.',
           ),
-          const SizedBox(height: 14),
-          const _FeatureRow(
+          const FeatureRow(
             icon: Icons.autorenew_rounded,
-            text: 'Miss a run? The work is safely redistributed, never crammed.',
+            title: 'Miss a run and nothing breaks',
+            description: 'The work is spread safely across your week, '
+                'never crammed back in.',
           ),
-          const SizedBox(height: 14),
-          const _FeatureRow(
+          const FeatureRow(
             icon: Icons.shield_moon_rounded,
-            text: 'Science-based progression with built-in safety guardrails.',
+            title: 'Built-in safety guardrails',
+            description: 'Science-based progression that won’t let you '
+                'over-reach.',
           ),
           const Spacer(flex: 3),
           FilledButton(
@@ -432,7 +435,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.event_rounded, color: AppTheme.ember),
+                Icon(Icons.event_rounded, color: scheme.primary),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
@@ -451,13 +454,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: AppTheme.ember.withValues(alpha: 0.10),
+            color: scheme.primary.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
-              const Icon(Icons.timelapse_rounded,
-                  color: AppTheme.ember, size: 20),
+              Icon(Icons.timelapse_rounded,
+                  color: scheme.primary, size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -653,40 +656,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// A bullet on the welcome screen: icon + supporting line.
-class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppTheme.ember.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppTheme.ember, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 7),
-            child: Text(text, style: theme.textTheme.bodyMedium),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// A large, tappable selection card used for the race-distance choice.
 class _OptionCard extends StatelessWidget {
   const _OptionCard({
@@ -715,11 +684,11 @@ class _OptionCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: selected
-              ? AppTheme.ember.withValues(alpha: 0.10)
+              ? scheme.primary.withValues(alpha: 0.10)
               : scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppTheme.ember : scheme.outlineVariant,
+            color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 2 : 1,
           ),
         ),
@@ -729,11 +698,11 @@ class _OptionCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppTheme.ember.withValues(alpha: 0.15),
+                color: scheme.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.directions_run_rounded,
-                  color: AppTheme.ember, size: 26),
+              child: Icon(Icons.directions_run_rounded,
+                  color: scheme.primary, size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -752,7 +721,7 @@ class _OptionCard extends StatelessWidget {
               selected
                   ? Icons.check_circle_rounded
                   : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppTheme.ember : scheme.outlineVariant,
+              color: selected ? scheme.primary : scheme.outlineVariant,
             ),
           ],
         ),

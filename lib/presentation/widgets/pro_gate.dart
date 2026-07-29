@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design.dart';
 import '../providers/entitlement_providers.dart';
 import '../providers/subscription_providers.dart';
 
@@ -16,27 +17,28 @@ Future<bool> ensurePro(BuildContext context, WidgetRef ref) async {
   return ref.read(proStatusProvider);
 }
 
-/// A small "PRO" pill for labelling gated features in the UI.
+/// A small "PRO" pill for labelling gated features *before* the user taps them.
+///
+/// Pro used to be discoverable only by hitting a wall — this widget existed but
+/// was never rendered anywhere. It is now the standing marker on gated
+/// surfaces so a paywall is never a surprise.
 class ProBadge extends StatelessWidget {
   const ProBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding:
+          const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
       decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(20),
+        color: theme.colorScheme.primary,
+        borderRadius: AppRadius.pillAll,
       ),
       child: Text(
         'PRO',
-        style: TextStyle(
-          color: scheme.onPrimary,
-          fontWeight: FontWeight.w800,
-          fontSize: 10,
-          letterSpacing: 0.5,
-        ),
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: theme.colorScheme.onPrimary),
       ),
     );
   }

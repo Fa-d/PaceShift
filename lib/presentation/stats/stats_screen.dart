@@ -2,14 +2,20 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
-import '../../core/theme.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/count_up_text.dart';
 import '../widgets/readiness_dial.dart';
 import 'stats_data.dart';
+
+/// fl_chart mark geometry. Bar corner rounding is a property of the mark, not
+/// of the layout grid, so it doesn't come from [AppRadius].
+const double _barRadius = 3;
+const double _barWidth = 7;
+const double _chartHeight = 200;
 
 /// Progress & stats: readiness dial, weekly volume bars, long-run progression,
 /// and completion streak (spec §8.5).
@@ -19,6 +25,7 @@ class StatsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final stats = ref.watch(statsProvider);
     final readiness = ref.watch(readinessProvider);
     final prediction = ref.watch(racePredictionProvider);
@@ -32,35 +39,34 @@ class StatsScreen extends ConsumerWidget {
                 message: 'Log a few runs and your progress will appear here.',
               )
             : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: Space.screenPadding,
                 children: [
                   Text('Progress', style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.lg),
+                  // Readiness is the one number that answers "how am I doing?",
+                  // so it gets the screen's only hero surface.
                   if (readiness != null)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: ReadinessDial(readiness: readiness)),
-                      ),
+                    HeroSurface(
+                      child: Center(child: ReadinessDial(readiness: readiness)),
                     ),
                   if (prediction != null) ...[
-                    const SizedBox(height: 12),
-                    Card(
+                    const SizedBox(height: Space.md),
+                    QuietSurface(
+                      padding: EdgeInsets.zero,
                       child: ListTile(
-                        leading: const Icon(Icons.flag_circle_rounded,
-                            color: AppTheme.ember, size: 32),
+                        leading: Icon(Icons.flag_circle_rounded,
+                            color: scheme.primary, size: 32),
                         title: CountUpText(
                             value: prediction.predictedSec,
                             format: (n) => formatFinishTime(n.round()),
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                            style: theme.textTheme.titleLarge),
                         subtitle: Text(prediction.confident
                             ? 'Predicted finish · ${formatPace(prediction.paceSecPerKm)}'
                             : 'Early estimate — log a long run to sharpen it'),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.lg),
                   Row(
                     children: [
                       Expanded(
@@ -68,56 +74,54 @@ class StatsScreen extends ConsumerWidget {
                           icon: Icons.local_fire_department_rounded,
                           value: '${stats.completionStreak}',
                           label: 'run streak',
-                          color: AppTheme.ember,
+                          color: scheme.primary,
                           countTo: stats.completionStreak,
                           countFormat: (n) => '${n.round()}',
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: Space.md),
                       Expanded(
                         child: _StatTile(
                           icon: Icons.route_rounded,
                           value: stats.totalCompletedKm.toStringAsFixed(0),
                           label: 'total km',
-                          color: const Color(0xFF3A7BD5),
+                          color: scheme.info,
                           countTo: stats.totalCompletedKm,
                           countFormat: (n) => n.round().toString(),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: Space.md),
                       Expanded(
                         child: _StatTile(
                           icon: Icons.terrain_rounded,
                           value: stats.longestRunKm.toStringAsFixed(0),
                           label: 'longest km',
-                          color: const Color(0xFF2BB673),
+                          color: scheme.success,
                           countTo: stats.longestRunKm,
                           countFormat: (n) => n.round().toString(),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.lg),
                   const SectionHeader('Weekly volume'),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 20, 16, 12),
-                      child: SizedBox(
-                          height: 200,
-                          child: _WeeklyVolumeChart(data: stats.weeklyVolumes)),
-                    ),
+                  QuietSurface(
+                    padding: const EdgeInsets.fromLTRB(
+                        Space.md, Space.xl, Space.lg, Space.md),
+                    child: SizedBox(
+                        height: _chartHeight,
+                        child: _WeeklyVolumeChart(data: stats.weeklyVolumes)),
                   ),
-                  const SizedBox(height: 8),
-                  _LegendRow(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.sm),
+                  const _LegendRow(),
+                  const SizedBox(height: Space.lg),
                   const SectionHeader('Long-run progression'),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 20, 16, 12),
-                      child: SizedBox(
-                          height: 200,
-                          child: _LongRunChart(data: stats.longRunProgression)),
-                    ),
+                  QuietSurface(
+                    padding: const EdgeInsets.fromLTRB(
+                        Space.md, Space.xl, Space.lg, Space.md),
+                    child: SizedBox(
+                        height: _chartHeight,
+                        child: _LongRunChart(data: stats.longRunProgression)),
                   ),
                 ].revealStagger(context),
               ),
@@ -146,26 +150,24 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final valueStyle =
-        theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        child: Column(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 8),
-            if (countTo != null && countFormat != null)
-              CountUpText(
-                  value: countTo!, format: countFormat!, style: valueStyle)
-            else
-              Text(value, style: valueStyle),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          ],
-        ),
+    final valueStyle = theme.textTheme.titleLarge;
+    return QuietSurface(
+      padding: const EdgeInsets.symmetric(
+          vertical: Space.lg, horizontal: Space.md),
+      child: Column(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: Space.sm),
+          if (countTo != null && countFormat != null)
+            CountUpText(
+                value: countTo!, format: countFormat!, style: valueStyle)
+          else
+            Text(value, style: valueStyle),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
       ),
     );
   }
@@ -220,7 +222,7 @@ class _WeeklyVolumeChart extends StatelessWidget {
                 // Show every other week label to avoid crowding.
                 if (data.length > 8 && i.isOdd) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: Space.xs),
                   child: Text('W${data[i].week}',
                       style: theme.textTheme.labelSmall),
                 );
@@ -235,15 +237,15 @@ class _WeeklyVolumeChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: data[i].plannedKm,
-                  width: 7,
+                  width: _barWidth,
                   color: theme.colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(_barRadius),
                 ),
                 BarChartRodData(
                   toY: data[i].completedKm,
-                  width: 7,
-                  color: AppTheme.ember,
-                  borderRadius: BorderRadius.circular(3),
+                  width: _barWidth,
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(_barRadius),
                 ),
               ],
             ),
@@ -298,7 +300,7 @@ class _LongRunChart extends StatelessWidget {
                 if (i < 0 || i >= data.length) return const SizedBox.shrink();
                 if (data.length > 8 && i.isOdd) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: Space.xs),
                   child:
                       Text('W${data[i].week}', style: theme.textTheme.labelSmall),
                 );
@@ -327,7 +329,7 @@ class _LongRunChart extends StatelessWidget {
                   FlSpot(i.toDouble(), data[i].actualKm!),
             ],
             isCurved: true,
-            color: AppTheme.ember,
+            color: theme.colorScheme.primary,
             barWidth: 3,
             dotData: const FlDotData(show: true),
           ),
@@ -340,27 +342,30 @@ class _LongRunChart extends StatelessWidget {
 }
 
 class _LegendRow extends StatelessWidget {
+  const _LegendRow();
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     Widget item(Color c, String label) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 12,
-                height: 12,
+                width: Space.md,
+                height: Space.md,
                 decoration: BoxDecoration(
-                    color: c, borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 6),
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
+                    color: c, borderRadius: BorderRadius.circular(_barRadius))),
+            const SizedBox(width: Space.sm),
+            Text(label, style: theme.textTheme.labelSmall),
           ],
         );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         item(scheme.outlineVariant, 'Planned'),
-        const SizedBox(width: 20),
-        item(AppTheme.ember, 'Completed'),
+        const SizedBox(width: Space.xl),
+        item(scheme.primary, 'Completed'),
       ],
     );
   }

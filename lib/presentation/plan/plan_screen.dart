@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/date_utils.dart';
+import '../../core/design.dart';
+import '../../core/errors.dart';
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
@@ -38,7 +40,8 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.fromLTRB(
+                  Space.screenH, Space.lg, Space.screenH, Space.sm),
               child: Row(
                 children: [
                   Text('Plan', style: theme.textTheme.headlineMedium),
@@ -67,10 +70,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
             Expanded(
               child: runsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => EmptyState(
-                    icon: Icons.error_outline_rounded,
-                    title: 'Could not load plan',
-                    message: '$e'),
+                // Never `'$e'` — that rendered a DriftWrappedException, SQL
+                // and all, in the middle of the screen.
+                error: (e, _) => SurfaceError(
+                  message: friendlyError(e,
+                      fallback: 'We couldn’t open your plan just now.'),
+                  onRetry: () => ref.invalidate(plannedRunsProvider),
+                ),
                 data: (runs) {
                   if (runs.isEmpty) {
                     return const EmptyState(
@@ -127,7 +133,8 @@ class _WeekListView extends ConsumerWidget {
         .fold<int?>(null, (acc, r) => acc ?? r.weekIndex);
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+      padding: const EdgeInsets.fromLTRB(
+          Space.screenH, Space.xs, Space.screenH, Space.screenBottom),
       itemCount: weeks.length,
       itemBuilder: (context, i) {
         final week = weeks[i];
@@ -144,12 +151,12 @@ class _WeekListView extends ConsumerWidget {
               trailing: CountUpText(
                 value: volume,
                 format: (n) => '${n.round()} km',
-                style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppTheme.ember, fontWeight: FontWeight.w700),
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.primary),
               ),
             ),
             ...weekRuns.map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: Space.sm),
                   child: Pressable(
                     child: RunCard(
                       run: r,
@@ -157,7 +164,7 @@ class _WeekListView extends ConsumerWidget {
                     ),
                   ),
                 )),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.sm),
           ],
         ).reveal(context);
       },
@@ -204,7 +211,8 @@ class _MonthViewState extends ConsumerState<_MonthView> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Space.screenH, vertical: Space.xs),
           child: Row(
             children: [
               IconButton(
@@ -226,7 +234,7 @@ class _MonthViewState extends ConsumerState<_MonthView> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: Space.lg),
           child: Row(
             children: [
               for (var d = 1; d <= 7; d++)
@@ -240,10 +248,11 @@ class _MonthViewState extends ConsumerState<_MonthView> {
             ],
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: Space.xs),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            padding: const EdgeInsets.fromLTRB(
+                Space.lg, Space.xs, Space.lg, Space.xl),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               childAspectRatio: 0.72,
@@ -286,20 +295,21 @@ class _MonthDayCell extends ConsumerWidget {
               context.push('/run/${run.id}');
             }
           : null,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: AppRadius.smAll,
       child: Container(
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           color: isToday ? scheme.primaryContainer : null,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: AppRadius.smAll,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('${date.day}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w400)),
-            const SizedBox(height: 4),
+                style: isToday
+                    ? theme.textTheme.labelMedium
+                    : theme.textTheme.bodySmall),
+            const SizedBox(height: Space.xs),
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 2,
@@ -333,21 +343,21 @@ class _MonthLegend extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 8,
-              height: 8,
+              width: Space.sm,
+              height: Space.sm,
               decoration: BoxDecoration(
                   color: statusColor(s, scheme), shape: BoxShape.circle),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: Space.xs),
             Text(runStatusLabel(s),
                 style: Theme.of(context).textTheme.labelSmall),
           ],
         );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.lg),
       child: Wrap(
-        spacing: 14,
-        runSpacing: 6,
+        spacing: Space.md,
+        runSpacing: Space.sm,
         alignment: WrapAlignment.center,
         children: [
           dot(RunStatus.pending),

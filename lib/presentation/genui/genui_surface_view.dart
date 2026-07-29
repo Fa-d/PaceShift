@@ -6,10 +6,10 @@ import 'package:genui/genui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design.dart';
-import '../../domain/models/enums.dart';
 import '../providers/auth_providers.dart';
 import '../providers/providers.dart';
 import '../shift/shift_summary.dart';
+import '../widgets/celebration.dart';
 import 'paceshift_catalog.dart';
 
 /// Renders AI-composed generative UI for PaceShift.
@@ -146,9 +146,11 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
         }
       case 'mark_done':
         if (action.runId == null) return;
-        await ref
-            .read(runRepositoryProvider)
-            .updateRunStatus(action.runId!, RunStatus.completed);
+        // Goes through the same path as the Today button. Flipping the status
+        // alone recorded no distance or duration, so a run completed from the
+        // coach counted for nothing in stats or the fitness estimate.
+        await ref.read(runRepositoryProvider).logAsPlanned(action.runId!);
+        if (mounted) Celebrate.burst(context);
         _toast('Marked done — nice work.');
         await _compose('I just marked that run as done.');
       case 'could_not_run':
@@ -162,7 +164,11 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
         }
         if (outcome.needsDecision) {
           if (mounted) {
-            await DegradeDecisionSheet.show(context, outcome.decisions);
+            await resolveDegradeDecision(context, ref,
+                options: outcome.decisions);
+            // Re-compose so the coach's next turn reflects the choice rather
+            // than the plan as it stood before it.
+            await _compose('I just chose how to adapt my plan.');
           }
           return;
         }
@@ -170,7 +176,7 @@ class _GenUiSurfaceViewState extends ConsumerState<GenUiSurfaceView> {
         // Re-ground the next surface on the fresh reshuffle changelog.
         await _compose(
           'I couldn’t run that one — what changed and why is it still safe?',
-          changes: changeLines(outcome),
+          changes: changeLines(outcome, ref.read(unitsProvider)),
         );
       default:
         await _compose(action.label);

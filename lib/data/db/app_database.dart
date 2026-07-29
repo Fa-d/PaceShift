@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'paceshift'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +56,11 @@ class AppDatabase extends _$AppDatabase {
                   ..where((t) => t.id.equals(0) & t.lastSyncAt.isNotNull()))
                 .write(SettingsRowsCompanion(
                     healthPromptedAt: Value(DateTime.now())));
+          }
+          // v6: an outstanding degrade decision is remembered, so a choice
+          // raised in the background survives until the athlete answers it.
+          if (from < 6) {
+            await m.addColumn(settingsRows, settingsRows.pendingDegradeSince);
           }
         },
       );
@@ -135,6 +140,9 @@ class RunsDao extends DatabaseAccessor<AppDatabase> with _$RunsDaoMixin {
   Future<void> deletePlannedRunsForPlan(int planId) =>
       (delete(plannedRuns)..where((t) => t.planId.equals(planId))).go();
 
+  Future<PlannedRunRow?> getPlannedRun(int id) =>
+      (select(plannedRuns)..where((t) => t.id.equals(id))).getSingleOrNull();
+
   Future<void> updatePlannedRun(int id, PlannedRunsCompanion changes) =>
       (update(plannedRuns)..where((t) => t.id.equals(id))).write(changes);
 
@@ -209,4 +217,9 @@ class SettingsDao extends DatabaseAccessor<AppDatabase> with _$SettingsDaoMixin 
   Future<void> markHealthPrompted(DateTime when) =>
       (update(settingsRows)..where((t) => t.id.equals(0)))
           .write(SettingsRowsCompanion(healthPromptedAt: Value(when)));
+
+  /// Records (or clears, with null) an outstanding §4.6 degrade decision.
+  Future<void> setPendingDegrade(DateTime? when) =>
+      (update(settingsRows)..where((t) => t.id.equals(0)))
+          .write(SettingsRowsCompanion(pendingDegradeSince: Value(when)));
 }

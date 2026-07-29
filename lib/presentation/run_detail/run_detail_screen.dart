@@ -62,6 +62,7 @@ class _RunDetailBody extends ConsumerWidget {
         .where((c) => c.plannedRunId == run.id)
         .firstOrNull;
     final plan = ref.watch(activePlanProvider).value;
+    final units = ref.watch(unitsProvider);
 
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -117,13 +118,15 @@ class _RunDetailBody extends ConsumerWidget {
               runSpacing: Space.lg,
               children: [
                 MetricBlock(
-                    value: formatKm(run.targetDistanceKm),
+                    value: units.distance(run.targetDistanceKm),
                     label: 'Distance',
-                    countTo: run.targetDistanceKm,
-                    countFormat: (n) => formatKm(n.toDouble())),
+                    countTo: units.toDisplay(run.targetDistanceKm ?? 0),
+                    countFormat: (n) =>
+                        '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)}'
+                        ' ${units.distanceLabel}'),
                 if (run.targetPaceSecPerKm != null)
                   MetricBlock(
-                      value: formatPace(run.targetPaceSecPerKm!),
+                      value: units.pace(run.targetPaceSecPerKm!),
                       label: 'Target pace'),
                 if (run.runWalkRatio != null)
                   MetricBlock(value: run.runWalkRatio!, label: 'Run / walk'),
@@ -140,7 +143,7 @@ class _RunDetailBody extends ConsumerWidget {
             const SizedBox(height: Space.lg),
             SectionHeader('Workout',
                 trailing: Icon(Icons.timeline_rounded, size: 18, color: color)),
-            _SegmentsCard(run: run, color: color),
+            _SegmentsCard(run: run, color: color, units: units),
           ],
           const SizedBox(height: Space.lg),
           SectionHeader('Actual',
@@ -185,6 +188,7 @@ class _ActualCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final units = ref.watch(unitsProvider);
     return QuietSurface(
       padding: const EdgeInsets.all(Space.xl),
       child: Column(
@@ -195,17 +199,19 @@ class _ActualCard extends ConsumerWidget {
             runSpacing: Space.lg,
             children: [
               MetricBlock(
-                  value: formatKm(completed.actualDistanceKm),
+                  value: units.distance(completed.actualDistanceKm),
                   label: 'Distance',
-                  countTo: completed.actualDistanceKm,
-                  countFormat: (n) => formatKm(n.toDouble())),
+                  countTo: units.toDisplay(completed.actualDistanceKm),
+                  countFormat: (n) =>
+                      '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)}'
+                      ' ${units.distanceLabel}'),
               MetricBlock(
                   value: formatDuration(completed.durationSec),
                   label: 'Time',
                   countTo: completed.durationSec,
                   countFormat: (n) => formatDuration(n.round())),
               MetricBlock(
-                  value: formatPace(completed.avgPaceSecPerKm), label: 'Pace'),
+                  value: units.pace(completed.avgPaceSecPerKm), label: 'Pace'),
               if (completed.avgHr != null)
                 MetricBlock(
                     value: '${completed.avgHr}',
@@ -266,10 +272,12 @@ class _ActualCard extends ConsumerWidget {
 
 /// Renders a structured session's segments as a labelled list.
 class _SegmentsCard extends StatelessWidget {
-  const _SegmentsCard({required this.run, required this.color});
+  const _SegmentsCard(
+      {required this.run, required this.color, required this.units});
 
   final PlannedRun run;
   final Color color;
+  final UnitSystem units;
 
   @override
   Widget build(BuildContext context) {
@@ -286,7 +294,7 @@ class _SegmentsCard extends StatelessWidget {
               subtitle: Text(_detail(seg)),
               trailing: seg.targetPaceSecPerKm == null
                   ? null
-                  : Text(formatPace(seg.targetPaceSecPerKm!),
+                  : Text(units.pace(seg.targetPaceSecPerKm!),
                       style: theme.textTheme.labelMedium),
             ),
         ].revealStagger(context),
@@ -296,7 +304,7 @@ class _SegmentsCard extends StatelessWidget {
 
   String _detail(WorkoutSegment s) {
     final amount = s.distanceKm != null
-        ? formatKm(s.distanceKm)
+        ? units.distance(s.distanceKm)
         : (s.durationSec != null ? formatDuration(s.durationSec!) : '');
     return s.reps > 1 ? '${s.reps} × $amount' : amount;
   }

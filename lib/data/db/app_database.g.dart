@@ -2305,6 +2305,17 @@ class $SettingsRowsTable extends SettingsRows
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _pendingDegradeSinceMeta =
+      const VerificationMeta('pendingDegradeSince');
+  @override
+  late final GeneratedColumn<DateTime> pendingDegradeSince =
+      GeneratedColumn<DateTime>(
+        'pending_degrade_since',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2318,6 +2329,7 @@ class $SettingsRowsTable extends SettingsRows
     userName,
     lastSyncAt,
     healthPromptedAt,
+    pendingDegradeSince,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2413,6 +2425,15 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('pending_degrade_since')) {
+      context.handle(
+        _pendingDegradeSinceMeta,
+        pendingDegradeSince.isAcceptableOrUnknown(
+          data['pending_degrade_since']!,
+          _pendingDegradeSinceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2472,6 +2493,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}health_prompted_at'],
       ),
+      pendingDegradeSince: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}pending_degrade_since'],
+      ),
     );
   }
 
@@ -2507,6 +2532,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// When we last asked the user to connect their health data (null = never
   /// asked). Drives the one-time post-onboarding connect screen.
   final DateTime? healthPromptedAt;
+
+  /// When the engine last raised a §4.6 degrade decision that the athlete has
+  /// not answered yet (null = nothing outstanding).
+  ///
+  /// The decision has to outlive the process: the engine only raises it while
+  /// rolling a *pending* run into `missed`, and that transition is persisted
+  /// immediately — so re-running the engine will never produce it a second
+  /// time. Without this column a decision raised by the background worker
+  /// could never reach the athlete at all.
+  final DateTime? pendingDegradeSince;
   const SettingsRow({
     required this.id,
     required this.units,
@@ -2519,6 +2554,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.userName,
     this.lastSyncAt,
     this.healthPromptedAt,
+    this.pendingDegradeSince,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2550,6 +2586,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || healthPromptedAt != null) {
       map['health_prompted_at'] = Variable<DateTime>(healthPromptedAt);
     }
+    if (!nullToAbsent || pendingDegradeSince != null) {
+      map['pending_degrade_since'] = Variable<DateTime>(pendingDegradeSince);
+    }
     return map;
   }
 
@@ -2570,6 +2609,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       healthPromptedAt: healthPromptedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(healthPromptedAt),
+      pendingDegradeSince: pendingDegradeSince == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pendingDegradeSince),
     );
   }
 
@@ -2604,6 +2646,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       healthPromptedAt: serializer.fromJson<DateTime?>(
         json['healthPromptedAt'],
       ),
+      pendingDegradeSince: serializer.fromJson<DateTime?>(
+        json['pendingDegradeSince'],
+      ),
     );
   }
   @override
@@ -2629,6 +2674,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'userName': serializer.toJson<String>(userName),
       'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
       'healthPromptedAt': serializer.toJson<DateTime?>(healthPromptedAt),
+      'pendingDegradeSince': serializer.toJson<DateTime?>(pendingDegradeSince),
     };
   }
 
@@ -2644,6 +2690,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     String? userName,
     Value<DateTime?> lastSyncAt = const Value.absent(),
     Value<DateTime?> healthPromptedAt = const Value.absent(),
+    Value<DateTime?> pendingDegradeSince = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
     units: units ?? this.units,
@@ -2662,6 +2709,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     healthPromptedAt: healthPromptedAt.present
         ? healthPromptedAt.value
         : this.healthPromptedAt,
+    pendingDegradeSince: pendingDegradeSince.present
+        ? pendingDegradeSince.value
+        : this.pendingDegradeSince,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2692,6 +2742,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       healthPromptedAt: data.healthPromptedAt.present
           ? data.healthPromptedAt.value
           : this.healthPromptedAt,
+      pendingDegradeSince: data.pendingDegradeSince.present
+          ? data.pendingDegradeSince.value
+          : this.pendingDegradeSince,
     );
   }
 
@@ -2708,7 +2761,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
           ..write('userName: $userName, ')
           ..write('lastSyncAt: $lastSyncAt, ')
-          ..write('healthPromptedAt: $healthPromptedAt')
+          ..write('healthPromptedAt: $healthPromptedAt, ')
+          ..write('pendingDegradeSince: $pendingDegradeSince')
           ..write(')'))
         .toString();
   }
@@ -2726,6 +2780,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     userName,
     lastSyncAt,
     healthPromptedAt,
+    pendingDegradeSince,
   );
   @override
   bool operator ==(Object other) =>
@@ -2741,7 +2796,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.cloudBackupEnabled == this.cloudBackupEnabled &&
           other.userName == this.userName &&
           other.lastSyncAt == this.lastSyncAt &&
-          other.healthPromptedAt == this.healthPromptedAt);
+          other.healthPromptedAt == this.healthPromptedAt &&
+          other.pendingDegradeSince == this.pendingDegradeSince);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2756,6 +2812,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<String> userName;
   final Value<DateTime?> lastSyncAt;
   final Value<DateTime?> healthPromptedAt;
+  final Value<DateTime?> pendingDegradeSince;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.units = const Value.absent(),
@@ -2768,6 +2825,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
     this.healthPromptedAt = const Value.absent(),
+    this.pendingDegradeSince = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2781,6 +2839,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.userName = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
     this.healthPromptedAt = const Value.absent(),
+    this.pendingDegradeSince = const Value.absent(),
   }) : units = Value(units),
        reminderMorningMinutes = Value(reminderMorningMinutes),
        reminderEveningMinutes = Value(reminderEveningMinutes),
@@ -2800,6 +2859,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<String>? userName,
     Expression<DateTime>? lastSyncAt,
     Expression<DateTime>? healthPromptedAt,
+    Expression<DateTime>? pendingDegradeSince,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2818,6 +2878,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       if (userName != null) 'user_name': userName,
       if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
       if (healthPromptedAt != null) 'health_prompted_at': healthPromptedAt,
+      if (pendingDegradeSince != null)
+        'pending_degrade_since': pendingDegradeSince,
     });
   }
 
@@ -2833,6 +2895,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<String>? userName,
     Value<DateTime?>? lastSyncAt,
     Value<DateTime?>? healthPromptedAt,
+    Value<DateTime?>? pendingDegradeSince,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2850,6 +2913,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       userName: userName ?? this.userName,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       healthPromptedAt: healthPromptedAt ?? this.healthPromptedAt,
+      pendingDegradeSince: pendingDegradeSince ?? this.pendingDegradeSince,
     );
   }
 
@@ -2901,6 +2965,11 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (healthPromptedAt.present) {
       map['health_prompted_at'] = Variable<DateTime>(healthPromptedAt.value);
     }
+    if (pendingDegradeSince.present) {
+      map['pending_degrade_since'] = Variable<DateTime>(
+        pendingDegradeSince.value,
+      );
+    }
     return map;
   }
 
@@ -2917,7 +2986,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('cloudBackupEnabled: $cloudBackupEnabled, ')
           ..write('userName: $userName, ')
           ..write('lastSyncAt: $lastSyncAt, ')
-          ..write('healthPromptedAt: $healthPromptedAt')
+          ..write('healthPromptedAt: $healthPromptedAt, ')
+          ..write('pendingDegradeSince: $pendingDegradeSince')
           ..write(')'))
         .toString();
   }
@@ -4624,6 +4694,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<String> userName,
       Value<DateTime?> lastSyncAt,
       Value<DateTime?> healthPromptedAt,
+      Value<DateTime?> pendingDegradeSince,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -4638,6 +4709,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<String> userName,
       Value<DateTime?> lastSyncAt,
       Value<DateTime?> healthPromptedAt,
+      Value<DateTime?> pendingDegradeSince,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -4705,6 +4777,11 @@ class $$SettingsRowsTableFilterComposer
     column: $table.healthPromptedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<DateTime> get pendingDegradeSince => $composableBuilder(
+    column: $table.pendingDegradeSince,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsRowsTableOrderingComposer
@@ -4770,6 +4847,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.healthPromptedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get pendingDegradeSince => $composableBuilder(
+    column: $table.pendingDegradeSince,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -4830,6 +4912,11 @@ class $$SettingsRowsTableAnnotationComposer
     column: $table.healthPromptedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get pendingDegradeSince => $composableBuilder(
+    column: $table.pendingDegradeSince,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsRowsTableTableManager
@@ -4875,6 +4962,7 @@ class $$SettingsRowsTableTableManager
                 Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<DateTime?> healthPromptedAt = const Value.absent(),
+                Value<DateTime?> pendingDegradeSince = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 units: units,
@@ -4887,6 +4975,7 @@ class $$SettingsRowsTableTableManager
                 userName: userName,
                 lastSyncAt: lastSyncAt,
                 healthPromptedAt: healthPromptedAt,
+                pendingDegradeSince: pendingDegradeSince,
               ),
           createCompanionCallback:
               ({
@@ -4901,6 +4990,7 @@ class $$SettingsRowsTableTableManager
                 Value<String> userName = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<DateTime?> healthPromptedAt = const Value.absent(),
+                Value<DateTime?> pendingDegradeSince = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 units: units,
@@ -4913,6 +5003,7 @@ class $$SettingsRowsTableTableManager
                 userName: userName,
                 lastSyncAt: lastSyncAt,
                 healthPromptedAt: healthPromptedAt,
+                pendingDegradeSince: pendingDegradeSince,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

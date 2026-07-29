@@ -28,6 +28,37 @@ class SchedulerRepository {
       _run((snapshot) => _engine.reportCouldNotRun(snapshot, plannedRunId),
           today: today);
 
+  /// Carry out the athlete's answer to a §4.6 degrade decision, and mark the
+  /// question answered.
+  ///
+  /// [DegradeKind.acceptRisk] changes nothing structurally — but clearing the
+  /// flag is still the whole point, because it is how the athlete says "I've
+  /// decided" and stops being asked.
+  Future<RescheduleOutcome?> applyDegradeDecision(DegradeKind kind,
+      {DateTime? today}) async {
+    final outcome = await _run(
+        (snapshot) => _engine.applyDegradeDecision(snapshot, kind),
+        today: today);
+    await _db.settingsDao.setPendingDegrade(null);
+    return outcome;
+  }
+
+  /// Whether a degrade decision is waiting for an answer.
+  ///
+  /// Read from settings rather than re-derived: the engine only raises the
+  /// decision while rolling a *pending* run into `missed`, and that transition
+  /// is persisted immediately — so re-running the engine would never surface it
+  /// twice. A decision raised by the background worker reaches the athlete
+  /// only because it was written down.
+  Future<bool> hasPendingDegradeDecision() async {
+    final row = await _db.settingsDao.getSettings();
+    return row?.pendingDegradeSince != null;
+  }
+
+  /// The options to present. They are fixed by the engine, so a stored flag is
+  /// enough to reconstruct the question.
+  static const List<DegradeOption> degradeOptions = AdaptiveScheduler.degradeOptions;
+
   Future<RescheduleOutcome?> _run(
     RescheduleOutcome Function(ScheduleSnapshot) compute, {
     DateTime? today,
@@ -49,6 +80,12 @@ class SchedulerRepository {
 
     final outcome = compute(snapshot);
     await _persist(before, outcome.runs);
+    // A decision raised here must outlive this call — the rollover that
+    // produced it runs at launch, on resume and in the background worker, and
+    // all three used to discard the outcome entirely.
+    if (outcome.needsDecision) {
+      await _db.settingsDao.setPendingDegrade(snapshot.today);
+    }
     return outcome;
   }
 

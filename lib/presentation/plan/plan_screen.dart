@@ -121,6 +121,7 @@ class _WeekListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final today = ref.watch(todayProvider);
+    final units = ref.watch(unitsProvider);
     final byWeek = <int, List<PlannedRun>>{};
     for (final r in runs) {
       byWeek.putIfAbsent(r.weekIndex, () => []).add(r);
@@ -140,8 +141,8 @@ class _WeekListView extends ConsumerWidget {
         final week = weeks[i];
         final weekRuns = byWeek[week]!
           ..sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
-        final volume = weekRuns.fold<double>(
-            0, (s, r) => s + (r.type.isRun ? (r.targetDistanceKm ?? 0) : 0));
+        final volume = units.toDisplay(weekRuns.fold<double>(
+            0, (s, r) => s + (r.type.isRun ? (r.targetDistanceKm ?? 0) : 0)));
         final isCurrent = week == currentWeek;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +151,7 @@ class _WeekListView extends ConsumerWidget {
               'Week $week${isCurrent ? '  • this week' : ''}',
               trailing: CountUpText(
                 value: volume,
-                format: (n) => '${n.round()} km',
+                format: (n) => '${n.round()} ${units.distanceLabel}',
                 style: theme.textTheme.labelLarge
                     ?.copyWith(color: theme.colorScheme.primary),
               ),

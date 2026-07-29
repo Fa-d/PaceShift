@@ -97,6 +97,16 @@ class SettingsRows extends Table {
   /// asked). Drives the one-time post-onboarding connect screen.
   DateTimeColumn get healthPromptedAt => dateTime().nullable()();
 
+  /// When the engine last raised a §4.6 degrade decision that the athlete has
+  /// not answered yet (null = nothing outstanding).
+  ///
+  /// The decision has to outlive the process: the engine only raises it while
+  /// rolling a *pending* run into `missed`, and that transition is persisted
+  /// immediately — so re-running the engine will never produce it a second
+  /// time. Without this column a decision raised by the background worker
+  /// could never reach the athlete at all.
+  DateTimeColumn get pendingDegradeSince => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

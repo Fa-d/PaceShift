@@ -10,6 +10,7 @@ import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/sync_repository.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/completed_run.dart';
+import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
 import '../../domain/fitness/race_predictor.dart';
 import '../../domain/models/training_plan.dart';
@@ -68,6 +69,48 @@ final lastSyncProvider = Provider<DateTime?>(
 /// Synced runs whose planned-run match needs a yes/no from the user.
 final unconfirmedRunsProvider = StreamProvider<List<CompletedRun>>(
   (ref) => ref.watch(runRepositoryProvider).watchUnconfirmedRuns(),
+);
+
+/// The athlete's chosen units. Watch this anywhere a distance or pace is
+/// rendered — see the `UnitFormat` extension in `core/formatting.dart`.
+final unitsProvider = Provider<UnitSystem>(
+  (ref) =>
+      ref.watch(settingsProvider).value?.units ?? UnitSystem.metric,
+);
+
+/// The most recent plan adjustment the athlete hasn't seen yet.
+///
+/// The rollover runs at launch, on resume and in the background worker, and
+/// every one of those call sites used to throw the [RescheduleOutcome] away —
+/// so the engine could move, shorten or drop runs and the only trace was a
+/// 12px banner buried in the Plan tab. Whoever runs the engine puts the result
+/// here; the Today attention queue shows it once and clears it.
+final recentAdjustmentProvider =
+    NotifierProvider<RecentAdjustment, RescheduleOutcome?>(RecentAdjustment.new);
+
+class RecentAdjustment extends Notifier<RescheduleOutcome?> {
+  @override
+  RescheduleOutcome? build() => null;
+
+  /// Records an outcome worth telling the athlete about. Silent passes (no
+  /// changes) are ignored so the queue doesn't fill with non-events.
+  void record(RescheduleOutcome? outcome) {
+    if (outcome == null || !outcome.hasChanges) return;
+    state = outcome;
+  }
+
+  void dismiss() => state = null;
+}
+
+/// Whether the engine is waiting on a §4.6 degrade decision.
+///
+/// Sourced from persisted settings, not re-derived: the rollover that raises
+/// the decision also writes the run off as `missed`, so running the engine
+/// again would never produce it a second time. Rollovers happen at launch, on
+/// resume and in the background worker — the flag is how a decision raised
+/// with nobody watching still reaches the athlete.
+final pendingDegradeProvider = Provider<bool>(
+  (ref) => ref.watch(settingsProvider).value?.pendingDegradeSince != null,
 );
 
 /// Runs a sync and settles the plan afterwards.

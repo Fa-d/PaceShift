@@ -37,6 +37,11 @@ abstract class AppSettings with _$AppSettings {
     /// When we last asked the user to connect health data (null = never asked).
     /// Read-only here, for the same reason as [lastSyncAt].
     DateTime? healthPromptedAt,
+
+    /// When the engine raised a degrade decision the athlete hasn't answered
+    /// (null = nothing outstanding). Read-only here — the scheduler repository
+    /// owns the write.
+    DateTime? pendingDegradeSince,
   }) = _AppSettings;
 
   const AppSettings._();

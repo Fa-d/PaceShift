@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../domain/models/planned_run.dart';
+import '../providers/providers.dart';
 import 'common.dart';
 
 /// Compact tappable row summarising a planned run (used in the plan list).
-class RunCard extends StatelessWidget {
+class RunCard extends ConsumerWidget {
   const RunCard({super.key, required this.run, this.onTap, this.trailing});
 
   final PlannedRun run;
@@ -14,8 +16,9 @@ class RunCard extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final units = ref.watch(unitsProvider);
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -38,7 +41,7 @@ class RunCard extends StatelessWidget {
                             style: theme.textTheme.titleMedium),
                         const SizedBox(width: Space.sm),
                         if (run.type.isRun && run.targetDistanceKm != null)
-                          Text(formatKm(run.targetDistanceKm),
+                          Text(units.distance(run.targetDistanceKm),
                               style: theme.textTheme.titleMedium?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant)),
                       ],

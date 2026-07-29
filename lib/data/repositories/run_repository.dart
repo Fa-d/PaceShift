@@ -85,6 +85,24 @@ class RunRepository {
     ));
   }
 
+  /// Completes [runId] exactly as planned — the one-tap path.
+  ///
+  /// Use this, not [updateRunStatus], whenever a run is *finished*. Flipping
+  /// the status alone records no distance and no duration, so the run silently
+  /// contributes nothing to stats, streaks, the fitness estimate or the race
+  /// prediction: it looks done and counts for nothing. [logManualCompletion]
+  /// falls back to the planned targets, which is exactly what "did it as
+  /// planned" means.
+  Future<void> logAsPlanned(int runId) async {
+    final row = await _runs.getPlannedRun(runId);
+    if (row == null) return;
+    await logManualCompletion(row.toDomain());
+  }
+
+  /// Sets a planned run's lifecycle status without recording an actual.
+  ///
+  /// For status transitions only (e.g. reopening a run). To mark a run
+  /// *finished*, use [logAsPlanned] or [logManualCompletion].
   Future<void> updateRunStatus(int runId, RunStatus status) =>
       _runs.updatePlannedRun(runId, PlannedRunsCompanion(status: Value(status)));
 

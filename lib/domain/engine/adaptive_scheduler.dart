@@ -40,6 +40,51 @@ class AdaptiveScheduler {
     return engine.build();
   }
 
+  /// Apply the athlete's answer to a §4.6 degrade decision.
+  ///
+  /// The engine surfaces [DegradeOption]s when there is no safe way to fit a
+  /// long run, and deliberately never chooses for the athlete. This is the
+  /// other half of that conversation: it carries out the choice they made,
+  /// still entirely within the guardrails, and then retries the long run that
+  /// forced the question.
+  ///
+  /// The returned outcome never carries new [DegradeOption]s. The athlete has
+  /// already answered; re-asking the same question because their answer wasn't
+  /// enough would be a loop, not a conversation.
+  RescheduleOutcome applyDegradeDecision(
+      ScheduleSnapshot snapshot, DegradeKind kind) {
+    final engine = _Engine(snapshot)..suppressDecisions();
+    engine.applyDegrade(kind);
+    return engine.build();
+  }
+
+  /// The choices offered when no safe redistribution exists (spec §4.6).
+  ///
+  /// Fixed rather than computed, so an outstanding decision can be restored
+  /// from a single stored flag instead of a serialised option list.
+  static const List<DegradeOption> degradeOptions = [
+    DegradeOption(
+      kind: DegradeKind.reducePeak,
+      title: 'Reduce the peak',
+      description:
+          'Lower the remaining long-run targets so the rest of the plan '
+          'fits safely into the time left.',
+    ),
+    DegradeOption(
+      kind: DegradeKind.dropLowValue,
+      title: 'Drop easy sessions',
+      description:
+          'Shed easy and strength sessions to make room for the long run.',
+    ),
+    DegradeOption(
+      kind: DegradeKind.acceptRisk,
+      title: 'Accept readiness risk',
+      description:
+          'Keep the plan as-is and accept that race readiness will be '
+          'below target.',
+    ),
+  ];
+
   static int _byPriorityThenDate(PlannedRun a, PlannedRun b) {
     final p = a.priority.index.compareTo(b.priority.index); // high=0 first
     if (p != 0) return p;
@@ -69,6 +114,11 @@ class _Engine {
   final Map<int, PlannedRun> _runs = {};
   final List<RunChange> _changes = [];
   final List<DegradeOption> _decisions = [];
+  bool _suppressDecisions = false;
+
+  /// Stop this pass raising degrade options — used when we are already acting
+  /// on the athlete's answer to one.
+  void suppressDecisions() => _suppressDecisions = true;
 
   late final double _ceilingFactor;
   late final double _jumpFactor;
@@ -165,6 +215,99 @@ class _Engine {
         _runs[run.id]!,
         partnerRunId: slot.partnerLongRunId!,
       ));
+    }
+  }
+
+  // ---- Degrade decisions (spec §4.6) -------------------------------------
+
+  void applyDegrade(DegradeKind kind) {
+    switch (kind) {
+      case DegradeKind.reducePeak:
+        _reducePeak();
+        _retryDegradedLongRuns();
+      case DegradeKind.dropLowValue:
+        _dropLowValue();
+        _retryDegradedLongRuns();
+      case DegradeKind.acceptRisk:
+        // Nothing moves. The athlete has chosen to carry the risk rather than
+        // shrink the plan, and saying so out loud is the whole point of the
+        // option — the caller records that the question is answered.
+        break;
+    }
+  }
+
+  /// Long runs the engine gave up on and that could still be made up.
+  List<PlannedRun> _degradedLongRuns() {
+    final out = <PlannedRun>[];
+    for (final r in _runs.values) {
+      if (r.type != RunType.long || r.status != RunStatus.missed) continue;
+      final latest = addDays(r.originalDate, s.settings.longRunCatchupWindowDays);
+      if (s.today.isAfter(latest)) continue;
+      out.add(r);
+    }
+    out.sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
+    return out;
+  }
+
+  /// "Reduce the peak": cap the remaining long runs at what the athlete has
+  /// actually demonstrated, grown one jump at a time.
+  ///
+  /// This is progressive overload run backwards — rather than asking for the
+  /// distance the original plan assumed they'd have built to by now, it asks
+  /// for the next honest step up from their longest completed run. The floor
+  /// stops it collapsing a long run into a token effort.
+  void _reducePeak() {
+    final longs = _runs.values
+        .where((r) =>
+            r.type == RunType.long &&
+            _isActive(r.status) &&
+            !r.scheduledDate.isBefore(s.today) &&
+            !s.isTaperDate(r.scheduledDate))
+        .toList()
+      ..sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
+    if (longs.isEmpty) return;
+
+    final demonstrated = s.completedRuns
+        .fold<double>(0, (m, c) => math.max(m, c.actualDistanceKm));
+    if (demonstrated <= 0) return;
+
+    var cap = demonstrated * _jumpFactor;
+    for (final run in longs) {
+      final target = run.targetDistanceKm;
+      if (target == null) continue;
+      if (target > cap) {
+        _reduce(run, math.max(cap, _longReduceFloor * target));
+      }
+      cap = math.max(cap, _runs[run.id]!.targetDistanceKm ?? 0) * _jumpFactor;
+    }
+  }
+
+  /// "Drop easy sessions": clear low-value work out of the window the long run
+  /// still has to land in — not the whole rest of the plan.
+  void _dropLowValue() {
+    for (final missed in _degradedLongRuns()) {
+      final latest =
+          addDays(missed.originalDate, s.settings.longRunCatchupWindowDays);
+      for (final run in _runs.values.toList()) {
+        if (run.id == missed.id) continue;
+        if (!_isActive(run.status)) continue;
+        if (run.scheduledDate.isBefore(s.today)) continue;
+        if (run.scheduledDate.isAfter(latest)) continue;
+        if (s.isTaperDate(run.scheduledDate)) continue;
+        if (run.priority == RunPriority.low ||
+            run.priority == RunPriority.flexible) {
+          _drop(run, 'Set aside to make room for your long run.');
+        }
+      }
+    }
+  }
+
+  /// Having freed capacity, try once more to place the long runs that forced
+  /// the decision. If they still don't fit they stay missed — but silently,
+  /// because the athlete has already been asked.
+  void _retryDegradedLongRuns() {
+    for (final run in _degradedLongRuns()) {
+      handleMissed(run.id, searchFrom: addDays(s.today, 1));
     }
   }
 
@@ -320,6 +463,15 @@ class _Engine {
     }
   }
 
+  /// Shorten a run where it stands (no move).
+  void _reduce(PlannedRun run, double toKm) {
+    final from = run.targetDistanceKm;
+    if (from == null || toKm >= from) return;
+    final newRun = run.copyWith(targetDistanceKm: toKm);
+    _runs[run.id] = newRun;
+    _changes.add(RunReducedChange(newRun, fromKm: from, toKm: toKm));
+  }
+
   void _drop(PlannedRun run, String reason) {
     final newRun = run.copyWith(status: RunStatus.dropped);
     _runs[run.id] = newRun;
@@ -335,29 +487,9 @@ class _Engine {
   void _degradePlan(PlannedRun run) {
     // Leave the long run marked missed; surface the choice (spec §4.6).
     _runs[run.id] = run.copyWith(status: RunStatus.missed);
+    if (_suppressDecisions) return;
     if (_decisions.isEmpty) {
-      _decisions.addAll(const [
-        DegradeOption(
-          kind: DegradeKind.reducePeak,
-          title: 'Reduce the peak',
-          description:
-              'Lower the remaining long-run targets so the rest of the plan '
-              'fits safely into the time left.',
-        ),
-        DegradeOption(
-          kind: DegradeKind.dropLowValue,
-          title: 'Drop easy sessions',
-          description:
-              'Shed easy and strength sessions to make room for the long run.',
-        ),
-        DegradeOption(
-          kind: DegradeKind.acceptRisk,
-          title: 'Accept readiness risk',
-          description:
-              'Keep the plan as-is and accept that race readiness will be '
-              'below target.',
-        ),
-      ]);
+      _decisions.addAll(AdaptiveScheduler.degradeOptions);
     }
   }
 

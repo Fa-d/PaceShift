@@ -145,14 +145,17 @@ extension SettingsRowMapper on SettingsRow {
         userName: userName,
         lastSyncAt: lastSyncAt,
         healthPromptedAt: healthPromptedAt,
+        pendingDegradeSince: pendingDegradeSince,
       );
 }
 
 extension SettingsToCompanion on AppSettings {
-  /// Deliberately omits `lastSyncAt`/`healthPromptedAt`: this companion is used
-  /// for an upsert whenever *any* setting changes, and a screen holding a stale
-  /// [AppSettings] would otherwise rewind the sync cursor. Those two columns are
-  /// written only by `SettingsDao.updateLastSync`/`markHealthPrompted`.
+  /// Deliberately omits `lastSyncAt`/`healthPromptedAt`/`pendingDegradeSince`:
+  /// this companion is used for an upsert whenever *any* setting changes, and a
+  /// screen holding a stale [AppSettings] would otherwise rewind the sync
+  /// cursor or silently discard an outstanding decision. Those columns are
+  /// written only by `SettingsDao.updateLastSync` / `markHealthPrompted` /
+  /// `setPendingDegrade`.
   SettingsRowsCompanion toCompanion() => SettingsRowsCompanion(
         id: const Value(0),
         units: Value(units),

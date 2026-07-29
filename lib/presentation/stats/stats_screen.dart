@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design.dart';
 import '../../core/formatting.dart';
 import '../../core/motion.dart';
+import '../../domain/models/enums.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/count_up_text.dart';
@@ -26,6 +27,7 @@ class StatsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final units = ref.watch(unitsProvider);
     final stats = ref.watch(statsProvider);
     final readiness = ref.watch(readinessProvider);
     final prediction = ref.watch(racePredictionProvider);
@@ -61,7 +63,7 @@ class StatsScreen extends ConsumerWidget {
                             format: (n) => formatFinishTime(n.round()),
                             style: theme.textTheme.titleLarge),
                         subtitle: Text(prediction.confident
-                            ? 'Predicted finish · ${formatPace(prediction.paceSecPerKm)}'
+                            ? 'Predicted finish · ${units.pace(prediction.paceSecPerKm)}'
                             : 'Early estimate — log a long run to sharpen it'),
                       ),
                     ),
@@ -83,10 +85,10 @@ class StatsScreen extends ConsumerWidget {
                       Expanded(
                         child: _StatTile(
                           icon: Icons.route_rounded,
-                          value: stats.totalCompletedKm.toStringAsFixed(0),
-                          label: 'total km',
+                          value: units.distanceValue(stats.totalCompletedKm),
+                          label: 'total ${units.distanceLabel}',
                           color: scheme.info,
-                          countTo: stats.totalCompletedKm,
+                          countTo: units.toDisplay(stats.totalCompletedKm),
                           countFormat: (n) => n.round().toString(),
                         ),
                       ),
@@ -94,10 +96,10 @@ class StatsScreen extends ConsumerWidget {
                       Expanded(
                         child: _StatTile(
                           icon: Icons.terrain_rounded,
-                          value: stats.longestRunKm.toStringAsFixed(0),
-                          label: 'longest km',
+                          value: units.distanceValue(stats.longestRunKm),
+                          label: 'longest ${units.distanceLabel}',
                           color: scheme.success,
-                          countTo: stats.longestRunKm,
+                          countTo: units.toDisplay(stats.longestRunKm),
                           countFormat: (n) => n.round().toString(),
                         ),
                       ),
@@ -110,7 +112,8 @@ class StatsScreen extends ConsumerWidget {
                         Space.md, Space.xl, Space.lg, Space.md),
                     child: SizedBox(
                         height: _chartHeight,
-                        child: _WeeklyVolumeChart(data: stats.weeklyVolumes)),
+                        child: _WeeklyVolumeChart(
+                            data: stats.weeklyVolumes, units: units)),
                   ),
                   const SizedBox(height: Space.sm),
                   const _LegendRow(),
@@ -121,7 +124,8 @@ class StatsScreen extends ConsumerWidget {
                         Space.md, Space.xl, Space.lg, Space.md),
                     child: SizedBox(
                         height: _chartHeight,
-                        child: _LongRunChart(data: stats.longRunProgression)),
+                        child: _LongRunChart(
+                            data: stats.longRunProgression, units: units)),
                   ),
                 ].revealStagger(context),
               ),
@@ -174,17 +178,18 @@ class _StatTile extends StatelessWidget {
 }
 
 class _WeeklyVolumeChart extends StatelessWidget {
-  const _WeeklyVolumeChart({required this.data});
+  const _WeeklyVolumeChart({required this.data, required this.units});
 
   final List<WeeklyVolume> data;
+  final UnitSystem units;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final maxY = data.fold<double>(
+    final maxY = units.toDisplay(data.fold<double>(
             0,
-            (m, w) =>
-                [m, w.plannedKm, w.completedKm].reduce((a, b) => a > b ? a : b)) *
+            (m, w) => [m, w.plannedKm, w.completedKm]
+                .reduce((a, b) => a > b ? a : b))) *
         1.2;
 
     return BarChart(
@@ -236,13 +241,13 @@ class _WeeklyVolumeChart extends StatelessWidget {
               x: i,
               barRods: [
                 BarChartRodData(
-                  toY: data[i].plannedKm,
+                  toY: units.toDisplay(data[i].plannedKm),
                   width: _barWidth,
                   color: theme.colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(_barRadius),
                 ),
                 BarChartRodData(
-                  toY: data[i].completedKm,
+                  toY: units.toDisplay(data[i].completedKm),
                   width: _barWidth,
                   color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(_barRadius),
@@ -258,14 +263,16 @@ class _WeeklyVolumeChart extends StatelessWidget {
 }
 
 class _LongRunChart extends StatelessWidget {
-  const _LongRunChart({required this.data});
+  const _LongRunChart({required this.data, required this.units});
 
   final List<LongRunPoint> data;
+  final UnitSystem units;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final maxY = data.fold<double>(0, (m, p) => p.targetKm > m ? p.targetKm : m) *
+    final maxY = units.toDisplay(
+            data.fold<double>(0, (m, p) => p.targetKm > m ? p.targetKm : m)) *
         1.2;
 
     return LineChart(
@@ -313,7 +320,7 @@ class _LongRunChart extends StatelessWidget {
           LineChartBarData(
             spots: [
               for (var i = 0; i < data.length; i++)
-                FlSpot(i.toDouble(), data[i].targetKm),
+                FlSpot(i.toDouble(), units.toDisplay(data[i].targetKm)),
             ],
             isCurved: true,
             color: theme.colorScheme.outline,
@@ -326,7 +333,7 @@ class _LongRunChart extends StatelessWidget {
             spots: [
               for (var i = 0; i < data.length; i++)
                 if (data[i].actualKm != null)
-                  FlSpot(i.toDouble(), data[i].actualKm!),
+                  FlSpot(i.toDouble(), units.toDisplay(data[i].actualKm!)),
             ],
             isCurved: true,
             color: theme.colorScheme.primary,

@@ -135,7 +135,7 @@ class NotificationService {
     final morningBody = todaysRun == null || todaysRun.type == RunType.rest
         ? 'Rest day — recovery is training too. Enjoy it.'
         : '${runTypeLabel(todaysRun.type)}: '
-            '${formatKm(todaysRun.targetDistanceKm)}'
+            '${settings.units.distance(todaysRun.targetDistanceKm)}'
             '${todaysRun.runWalkRatio != null ? ' · ${todaysRun.runWalkRatio} run/walk' : ''}';
 
     await _zoned(

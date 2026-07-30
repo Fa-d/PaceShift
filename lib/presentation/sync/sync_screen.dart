@@ -35,10 +35,11 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   }
 
   String _messageFor(SyncResult r) {
+    final units = ref.read(unitsProvider);
     switch (r.status) {
       case SyncStatus.success:
         if (r.newRuns == 0) return 'You’re up to date — no new runs.';
-        return '${r.totalKm.toStringAsFixed(1)} km logged across '
+        return '${units.distance(r.totalKm)} logged across '
             '${r.newRuns} run${r.newRuns == 1 ? '' : 's'}.';
       case SyncStatus.unavailable:
         return 'No health data source is available on this device.';

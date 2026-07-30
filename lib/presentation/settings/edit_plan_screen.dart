@@ -299,7 +299,7 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
     final kept = await repo.completedRunCount();
     if (!mounted) return;
 
-    final weeks = ((_raceDate!.difference(today()).inDays) / 7).ceil();
+    final weeks = PlanInput.weeksUntilRace(today(), _raceDate!);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -342,6 +342,10 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
         currentLongestRunKm: longest,
         daysPerWeek: _daysPerWeek!,
         preferredLongRunDay: _longRunDay!,
+        // Must match the count shown in the confirmation dialog above, and
+        // must be passed at all — see PlanInput.weeksUntilRace.
+        planWeeks: weeks,
+        peakLongRunKm: PlanInput.defaultPeakLongRunKm(_raceDistanceKm!),
         goalFinishSec:
             _hasGoal! ? (_goalHours * 3600 + _goalMinutes * 60) : null,
       ));
@@ -363,10 +367,12 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
 
   Future<double> _startingFitnessKm() async {
     final completed = ref.read(completedRunsProvider).value ?? const [];
-    final longestDone =
-        completed.fold<double>(0, (m, c) => c.actualDistanceKm > m
-            ? c.actualDistanceKm
-            : m);
+    // Runs only — a logged 25 km hike is not evidence of running fitness, and
+    // would have the regenerated plan open at a long run the athlete can't do.
+    final longestDone = completed
+        .where((c) => c.isRun)
+        .fold<double>(
+            0, (m, c) => c.actualDistanceKm > m ? c.actualDistanceKm : m);
     if (longestDone > 0) return longestDone;
     final runs = ref.read(plannedRunsProvider).value ?? const <PlannedRun>[];
     final firstLong = runs

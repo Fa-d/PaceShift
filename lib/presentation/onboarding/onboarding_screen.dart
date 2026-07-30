@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/date_utils.dart';
 import '../../core/design.dart';
 import '../../core/errors.dart';
 import '../../core/formatting.dart';
@@ -58,16 +59,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  String get _unitLabel => _units == UnitSystem.metric ? 'km' : 'mi';
+  String get _unitLabel => _units.distanceLabel;
   int get _weeksToRace =>
       (_raceDate.difference(DateTime.now()).inDays / 7).round();
 
-  double _toKm(double v) => _units == UnitSystem.metric ? v : v * 1.60934;
-
-  String _trimNum(double d) {
-    final r = (d * 10).round() / 10;
-    return r == r.roundToDouble() ? r.toInt().toString() : r.toStringAsFixed(1);
-  }
+  /// Converts a typed value in the athlete's units to stored km. Delegates to
+  /// [UnitFormat] rather than a local 1.60934 — the app's constant is 1.609344,
+  /// and two conversion factors is one too many.
+  double _toKm(double v) => _units.fromDisplay(v);
 
   // ---- Navigation ----
 
@@ -121,10 +120,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() {
       _units = u;
       final km = _longestKm;
-      if (km != null) {
-        _longestRun.text =
-            _trimNum(u == UnitSystem.metric ? km : km / 1.60934);
-      }
+      if (km != null) _longestRun.text = u.distanceValue(km);
     });
   }
 
@@ -139,6 +135,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       currentLongestRunKm: _toKm(double.parse(_longestRun.text.trim())),
       daysPerWeek: _daysPerWeek,
       preferredLongRunDay: _longRunDay,
+      // Without these two the plan is always 19 weeks peaking at 32 km,
+      // regardless of when the race is or how far it is.
+      planWeeks: PlanInput.weeksUntilRace(today(), _raceDate),
+      peakLongRunKm: PlanInput.defaultPeakLongRunKm(_raceDistanceKm),
       goalFinishSec:
           _hasGoalTime ? (_goalHours * 3600 + _goalMinutes * 60) : null,
     );

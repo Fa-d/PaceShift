@@ -131,10 +131,12 @@ class _WeekListView extends ConsumerWidget {
     }
     final weeks = byWeek.keys.toList()..sort();
 
-    // Default-scroll to the current week.
-    final currentWeek = runs
-        .where((r) => !r.scheduledDate.isBefore(addDays(today, -6)))
-        .fold<int?>(null, (acc, r) => acc ?? r.weekIndex);
+    // Which week to mark "• this week". Derived from the plan's start date, not
+    // from the first run within the last 6 days — that folded over an unsorted
+    // list, so last Wednesday's run could win and mark the *previous* week.
+    final plan = ref.watch(activePlanProvider).value;
+    final currentWeek =
+        plan == null ? null : planWeekClamped(plan.startDate, today);
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
@@ -154,7 +156,7 @@ class _WeekListView extends ConsumerWidget {
               'Week $week${isCurrent ? '  • this week' : ''}',
               trailing: CountUpText(
                 value: volume,
-                format: (n) => '${n.round()} ${units.distanceLabel}',
+                format: (n) => '${formatDecimal(n)} ${units.distanceLabel}',
                 style: theme.textTheme.labelLarge
                     ?.copyWith(color: theme.colorScheme.primary),
               ),

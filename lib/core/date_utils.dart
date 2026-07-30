@@ -46,3 +46,29 @@ DateTime nextOrSameWeekday(DateTime d, int weekday) {
   final diff = (weekday - base.weekday + 7) % 7;
   return addDays(base, diff);
 }
+
+/// The 1-based training week that [date] falls in, relative to [planStart].
+///
+/// Dates before the plan started return 0, -1, … so base-building history
+/// spreads across real weeks instead of piling into week 1.
+///
+/// Uses `.floor()`, never `~/`: integer division truncates *toward zero*, so
+/// `~/` maps both day -1 and day -6 onto "week 1" and silently disagrees with
+/// this function for every pre-plan date. Five call sites used to compute this
+/// inline, two of them with `~/`; this is the one definition.
+int planWeek(DateTime planStart, DateTime date) =>
+    (daysBetween(planStart, date) / 7).floor() + 1;
+
+/// [planWeek] floored at 1 — for display and for the engine, where "before the
+/// plan started" is not a meaningful week to show or schedule into.
+int planWeekClamped(DateTime planStart, DateTime date) {
+  final w = planWeek(planStart, date);
+  return w < 1 ? 1 : w;
+}
+
+/// The first calendar date of 1-based training [week].
+///
+/// The inverse of [planWeek]: `planWeekStart(s, planWeek(s, d)) <= d` and
+/// `d < planWeekStart(...) + 7 days`, for pre-plan weeks too.
+DateTime planWeekStart(DateTime planStart, int week) =>
+    addDays(planStart, (week - 1) * 7);

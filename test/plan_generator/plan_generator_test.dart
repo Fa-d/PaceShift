@@ -183,4 +183,108 @@ void main() {
       }
     });
   });
+
+  group('plan length derived from the race date', () {
+    final from = DateTime(2026, 3, 2); // a Monday
+
+    test('a race 8 weeks out yields a 9-week plan starting this week', () {
+      final race = addDays(from, 8 * 7); // race week is 8 weeks after this one
+      final weeks = PlanInput.weeksUntilRace(from, race);
+      expect(weeks, 9);
+
+      final result = generator.generate(PlanInput(
+        raceDate: race,
+        currentLongestRunKm: 18,
+        preferredLongRunDay: DateTime.saturday,
+        planWeeks: weeks,
+      ));
+
+      // The whole point: the plan must not start in the past.
+      expect(result.plan.startDate, previousOrSameWeekday(from, DateTime.monday));
+      expect(result.plan.totalWeeks, 9);
+      expect(
+        result.runs.every((r) => !r.scheduledDate.isBefore(result.plan.startDate)),
+        isTrue,
+      );
+    });
+
+    test('the default 19 would have started such a plan in the past', () {
+      final race = addDays(from, 8 * 7);
+      final withDefault = generator.generate(PlanInput(
+        raceDate: race,
+        currentLongestRunKm: 18,
+        preferredLongRunDay: DateTime.saturday,
+      ));
+      // The regression this fixes: ten weeks of runs the athlete never had a
+      // chance to do, all marked missed on the first rollover.
+      expect(withDefault.plan.startDate.isBefore(from), isTrue);
+    });
+
+    test('clamps a very near race up to the minimum plan length', () {
+      final race = addDays(from, 7);
+      expect(PlanInput.weeksUntilRace(from, race), PlanInput.minPlanWeeks);
+    });
+
+    test('clamps a very distant race down to the maximum', () {
+      final race = addDays(from, 60 * 7);
+      expect(PlanInput.weeksUntilRace(from, race), PlanInput.maxPlanWeeks);
+    });
+
+    test('race week itself counts as one week', () {
+      expect(PlanInput.weeksUntilRace(from, addDays(from, 3)),
+          PlanInput.minPlanWeeks);
+    });
+  });
+
+  group('peak long run derived from race distance', () {
+    test('a marathon keeps the canonical 32 km peak', () {
+      expect(PlanInput.defaultPeakLongRunKm(42.2), 32);
+    });
+
+    test('a half marathon peaks near 19 km, not 32', () {
+      expect(PlanInput.defaultPeakLongRunKm(21.1), 19);
+    });
+
+    test('a 10k peaks above race distance', () {
+      expect(PlanInput.defaultPeakLongRunKm(10), 13);
+    });
+
+    test('a generated half-marathon plan never schedules a 32 km long run', () {
+      final race = DateTime(2026, 10, 4);
+      final result = generator.generate(PlanInput(
+        raceDate: race,
+        raceDistanceKm: 21.1,
+        currentLongestRunKm: 14,
+        preferredLongRunDay: DateTime.sunday,
+        planWeeks: PlanInput.weeksUntilRace(DateTime(2026, 8, 3), race),
+        peakLongRunKm: PlanInput.defaultPeakLongRunKm(21.1),
+      ));
+
+      final longs = result.runs
+          .where((r) => r.type == RunType.long && !isSameDate(r.scheduledDate, race))
+          .map((r) => r.targetDistanceKm!)
+          .toList();
+      expect(longs, isNotEmpty);
+      // Previously every plan peaked at 32 km — 1.5x this race distance.
+      expect(longs.reduce((a, b) => a > b ? a : b), lessThanOrEqualTo(19.0));
+    });
+
+    test('the marathon default still produces the spec seed ladder', () {
+      final race = DateTime(2026, 11, 1);
+      final canonical = generator.generate(inputFor(race));
+      final explicit = generator.generate(PlanInput(
+        raceDate: race,
+        currentLongestRunKm: 18,
+        preferredLongRunDay: DateTime.saturday,
+        peakLongRunKm: PlanInput.defaultPeakLongRunKm(42.2),
+      ));
+
+      expect(explicit.runs.length, canonical.runs.length);
+      final a = canonical.runs.where((r) => r.type == RunType.long).toList();
+      final b = explicit.runs.where((r) => r.type == RunType.long).toList();
+      for (var i = 0; i < a.length; i++) {
+        expect(b[i].targetDistanceKm, a[i].targetDistanceKm);
+      }
+    });
+  });
 }

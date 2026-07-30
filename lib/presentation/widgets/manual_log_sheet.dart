@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design.dart';
 import '../../core/errors.dart';
 import '../../core/formatting.dart';
+import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
 import '../providers/providers.dart';
 import 'celebration.dart';
@@ -40,15 +41,37 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
   bool _saving = false;
   String? _error;
 
+  /// The exact planned distance behind the prefilled text. The field shows a
+  /// value rounded to one display unit, so logging a run "as shown" would
+  /// otherwise rewrite a 12.875 km target to 12.9.
+  double? _prefilledKm;
+  String? _prefilledText;
+
+  /// Set once the athlete types, so a late-arriving units value can no longer
+  /// overwrite their input.
+  bool _edited = false;
+
   @override
   void initState() {
     super.initState();
-    _distance = TextEditingController(
-      text: widget.plannedRun?.targetDistanceKm?.toString() ?? '',
-    );
+    _prefilledKm = widget.plannedRun?.targetDistanceKm;
+    _distance = TextEditingController();
     _minutes = TextEditingController(
       text: widget.plannedRun?.targetDurationMin?.toString() ?? '',
     );
+    _applyPrefill(ref.read(unitsProvider));
+  }
+
+  /// Writes the planned distance into the field in [units].
+  ///
+  /// Called again whenever the units value changes. `unitsProvider` answers
+  /// metric while the settings row is still loading, so prefilling once in
+  /// [initState] showed an imperial athlete the raw kilometre figure.
+  void _applyPrefill(UnitSystem units) {
+    final km = _prefilledKm;
+    if (km == null || _edited) return;
+    _prefilledText = units.distanceValue(km);
+    if (_distance.text != _prefilledText) _distance.text = _prefilledText!;
   }
 
   @override
@@ -68,7 +91,15 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
       _error = null;
     });
     final repo = ref.read(runRepositoryProvider);
-    final dist = double.parse(_distance.text.trim());
+    final units = ref.read(unitsProvider);
+    final typed = _distance.text.trim();
+    // The field is in the athlete's own units, so it must be converted back to
+    // stored kilometres. Without this an imperial athlete logging a 13.1 mile
+    // half marathon recorded 13.1 km, corrupting every total, chart, VDOT
+    // estimate and race prediction downstream.
+    final dist = typed == _prefilledText && _prefilledKm != null
+        ? _prefilledKm!
+        : units.fromDisplay(double.parse(typed));
     final durSec = ((double.tryParse(_minutes.text.trim()) ?? 0) * 60).round();
     final avgHr = int.tryParse(_avgHr.text.trim());
     final maxHr = int.tryParse(_maxHr.text.trim());
@@ -118,6 +149,9 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
   Widget build(BuildContext context) {
     final planned = widget.plannedRun;
     final theme = Theme.of(context);
+    final units = ref.watch(unitsProvider);
+    // Re-prefill if the settings row resolves after the first frame.
+    ref.listen<UnitSystem>(unitsProvider, (_, next) => _applyPrefill(next));
     return Padding(
       padding: EdgeInsets.only(
         left: Space.screenH,
@@ -145,11 +179,15 @@ class _ManualLogSheetState extends ConsumerState<ManualLogSheet> {
                     controller: _distance,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                        labelText: 'Distance (km)', prefixIcon: Icon(Icons.straighten)),
+                    decoration: InputDecoration(
+                        labelText: 'Distance (${units.distanceLabel})',
+                        prefixIcon: const Icon(Icons.straighten)),
+                    onChanged: (_) => _edited = true,
                     validator: (v) {
                       final d = double.tryParse((v ?? '').trim());
-                      if (d == null || d <= 0) return 'Enter distance';
+                      if (d == null || d <= 0) {
+                        return 'Enter distance in ${units.distanceLabel}';
+                      }
                       return null;
                     },
                   ),

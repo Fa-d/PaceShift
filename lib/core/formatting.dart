@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../domain/models/enums.dart';
 
 /// Human-readable labels and number formatting for the UI.
@@ -56,25 +58,22 @@ extension UnitFormat on UnitSystem {
   /// Converts a stored kilometre value into display units.
   double toDisplay(double km) => _imperial ? km / _kmPerMile : km;
 
+  /// Converts a value the athlete **typed in their own units** back to the
+  /// stored kilometre value. The exact inverse of [toDisplay].
+  ///
+  /// Every write path must go through this. Its absence is why the manual log
+  /// sheet stored an imperial athlete's "13.1" as 13.1 km instead of 21.1 —
+  /// silently corrupting every total, chart, VDOT estimate and race prediction
+  /// derived from it.
+  double fromDisplay(double value) => _imperial ? value * _kmPerMile : value;
+
   /// Distance like `12.5 km` / `7.8 mi` (a trailing `.0` is trimmed).
-  String distance(double? km) {
-    if (km == null) return '—';
-    final v = toDisplay(km);
-    final rounded = (v * 10).round() / 10;
-    if (rounded == rounded.roundToDouble()) {
-      return '${rounded.toInt()} $distanceLabel';
-    }
-    return '${rounded.toStringAsFixed(1)} $distanceLabel';
-  }
+  String distance(double? km) =>
+      km == null ? '—' : '${distanceValue(km)} $distanceLabel';
 
   /// Distance with no unit suffix, for when the caption already carries it.
-  String distanceValue(double? km) {
-    if (km == null) return '—';
-    final rounded = (toDisplay(km) * 10).round() / 10;
-    return rounded == rounded.roundToDouble()
-        ? '${rounded.toInt()}'
-        : rounded.toStringAsFixed(1);
-  }
+  String distanceValue(double? km) =>
+      km == null ? '—' : formatDecimal(toDisplay(km));
 
   /// Pace like `5:42 /km` or `9:11 /mi`, from a stored sec/km value.
   String pace(double secPerKm) {
@@ -83,6 +82,21 @@ extension UnitFormat on UnitSystem {
     final total = perUnit.round();
     return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')} $paceLabel';
   }
+}
+
+/// A number with at most [decimals] places, trimming a trailing `.0`
+/// (`3.44 → "3.4"`, `0.6 → "0.6"`, `12.0 → "12"`).
+///
+/// The single rounding rule for every displayed quantity. Call sites used to
+/// pair a one-decimal string with a `(n) => n.round()` count-up formatter that
+/// shadowed it, so a 0.6 km total rendered as a bare "0". Cheap enough to call
+/// per animation frame — see `CountUpText`.
+String formatDecimal(num v, {int decimals = 1}) {
+  final factor = math.pow(10, decimals);
+  final rounded = (v * factor).round() / factor;
+  return rounded == rounded.roundToDouble()
+      ? rounded.toInt().toString()
+      : rounded.toStringAsFixed(decimals);
 }
 
 /// Duration in seconds as `1h 12m` / `48m` / `0m`.

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +7,9 @@ import 'package:paceshift/core/date_utils.dart';
 import 'package:paceshift/core/theme.dart';
 import 'package:paceshift/data/db/app_database.dart';
 import 'package:paceshift/data/repositories/plan_repository.dart';
+import 'package:paceshift/data/repositories/run_repository.dart';
 import 'package:paceshift/data/repositories/settings_repository.dart';
+import 'package:paceshift/domain/models/enums.dart';
 import 'package:paceshift/domain/plan_generator/plan_input.dart';
 import 'package:paceshift/presentation/providers/providers.dart';
 import 'package:paceshift/presentation/today/today_screen.dart';
@@ -100,6 +103,45 @@ void main() {
     // The connect screen overflowed on anything shorter than the design.
     await _pumpToday(tester, size: const Size(320, 560));
     expect(tester.takeException(), isNull);
+    await _settle(tester);
+  });
+
+  testWidgets('the week glance counts runs but not walks', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await SettingsRepository(db).ensureDefaults();
+    await PlanRepository(db).createPlanFromInput(PlanInput(
+      raceDate: addDays(today(), 133),
+      currentLongestRunKm: 18,
+      preferredLongRunDay: DateTime.saturday,
+    ));
+    await RunRepository(db)
+        .logExtraRun(date: today(), distanceKm: 10, durationSec: 3000);
+    // A walk can only arrive via the health sync, so write it directly.
+    await db.into(db.completedRuns).insert(CompletedRunsCompanion.insert(
+          date: today(),
+          actualDistanceKm: 10,
+          durationSec: 7200,
+          avgPaceSecPerKm: 720,
+          source: RunSource.manual,
+          activityType: const Value(ActivityType.walk),
+        ));
+
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp(theme: AppTheme.light(), home: const TodayScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The walk used to be added in here while the Progress bars — which do
+    // filter on ActivityType — ignored it, so the two screens disagreed.
+    expect(find.textContaining(RegExp(r'^10 / ')), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^20 / ')), findsNothing);
     await _settle(tester);
   });
 

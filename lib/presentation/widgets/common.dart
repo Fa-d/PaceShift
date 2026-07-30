@@ -181,14 +181,18 @@ class StatusChip extends StatelessWidget {
 class MetricBlock extends StatelessWidget {
   const MetricBlock({
     super.key,
-    required this.value,
+    this.value,
     required this.label,
     this.color,
     this.countTo,
     this.countFormat,
-  });
+  }) : assert(value != null || (countTo != null && countFormat != null),
+            'MetricBlock needs either a value or a countTo/countFormat pair');
 
-  final String value;
+  /// The rendered value, for metrics that aren't a single animatable number
+  /// (pace, run/walk ratio). Ignored when [countTo] and [countFormat] are set —
+  /// pass one or the other, never both, or the two can silently disagree.
+  final String? value;
   final String label;
   final Color? color;
 
@@ -207,7 +211,7 @@ class MetricBlock extends StatelessWidget {
         if (countTo != null && countFormat != null)
           CountUpText(value: countTo!, format: countFormat!, style: valueStyle)
         else
-          Text(value, style: valueStyle),
+          Text(value!, style: valueStyle),
         const SizedBox(height: Space.xs),
         Text(
           label,

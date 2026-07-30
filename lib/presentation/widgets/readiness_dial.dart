@@ -18,7 +18,7 @@ class ReadinessDial extends StatelessWidget {
   final ReadinessScore readiness;
   final double size;
 
-  Widget _dial(ThemeData theme, Color color, double progress, int score) {
+  Widget _dial(ThemeData theme, Color color, double progress, String score) {
     return SizedBox(
       width: size,
       height: size,
@@ -32,9 +32,10 @@ class ReadinessDial extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$score',
+              Text(score,
                   style: theme.textTheme.displaySmall?.copyWith(color: color)),
               Text(readiness.label,
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.titleSmall?.copyWith(color: color)),
               const SizedBox(height: Space.xs),
               Text('readiness',
@@ -51,9 +52,14 @@ class ReadinessDial extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = readinessColor(readiness.band, theme.colorScheme);
+
+    // Nothing measurable yet: an empty track and a dash. Sweeping an arc to a
+    // number the scorer won't stand behind is worse than saying nothing.
+    if (!readiness.hasSignal) return _dial(theme, color, 0, '—');
+
     final target = readiness.score / 100;
     if (!AppMotion.on(context)) {
-      return _dial(theme, color, target, readiness.score);
+      return _dial(theme, color, target, '${readiness.score}');
     }
     // Animate a single 0→1 driver: the arc overshoots, the number stays linear.
     return TweenAnimationBuilder<double>(
@@ -64,7 +70,7 @@ class ReadinessDial extends StatelessWidget {
         theme,
         color,
         target * Curves.easeOutBack.transform(t.clamp(0, 1)),
-        (readiness.score * t).round(),
+        '${(readiness.score * t).round()}',
       ),
     );
   }

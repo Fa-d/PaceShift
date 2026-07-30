@@ -25,11 +25,9 @@ class ScheduleSnapshot {
   final DateTime today;
 
   /// 1-based training week containing [date], derived from the plan's start.
-  int weekOf(DateTime date) {
-    final days = daysBetween(plan.startDate, date);
-    if (days < 0) return 1;
-    return (days ~/ 7) + 1;
-  }
+  ///
+  /// Clamped: the engine never schedules into a week before the plan began.
+  int weekOf(DateTime date) => planWeekClamped(plan.startDate, date);
 
   /// The week index of race week (the final week).
   int get raceWeek => weekOf(plan.raceDate);

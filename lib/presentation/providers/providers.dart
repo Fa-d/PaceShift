@@ -204,7 +204,7 @@ final planSummaryProvider = Provider<String>((ref) {
   final plan = ref.watch(activePlanProvider).value;
   if (plan == null) return 'No active plan.';
   final t = ref.watch(todayProvider);
-  final week = (daysBetween(plan.startDate, t) ~/ 7) + 1;
+  final week = planWeekClamped(plan.startDate, t);
   final readiness = ref.watch(readinessProvider);
   final prediction = ref.watch(racePredictionProvider);
   final parts = <String>[
@@ -212,7 +212,12 @@ final planSummaryProvider = Provider<String>((ref) {
     'week $week of ${plan.totalWeeks}',
     'taper ${plan.taperWeeks} weeks',
   ];
-  if (readiness != null) parts.add('readiness ${readiness.score}/100 (${readiness.label})');
+  if (readiness != null) {
+    // Never ground the AI on a score the scorer itself won't stand behind.
+    parts.add(readiness.hasSignal
+        ? 'readiness ${readiness.score}/100 (${readiness.label})'
+        : 'readiness not yet measurable (too few runs due)');
+  }
   if (prediction != null) {
     final s = prediction.predictedSec;
     parts.add('predicted finish ${s ~/ 3600}h${(s % 3600) ~/ 60}m');
@@ -226,7 +231,9 @@ final readinessProvider = Provider<ReadinessScore?>((ref) {
   if (plan == null) return null;
   final runs = ref.watch(plannedRunsProvider).value ?? const [];
   final completed = ref.watch(completedRunsProvider).value ?? const [];
-  return ReadinessScorer(peakLongRunKm: 32).compute(
+  // No peak override: the scorer derives it from the plan's own long-run
+  // ladder, so it is right for every race distance.
+  return const ReadinessScorer().compute(
     plan: plan,
     plannedRuns: runs,
     completedRuns: completed,

@@ -201,6 +201,9 @@ Color readinessColor(ReadinessBand band, ColorScheme scheme) {
       return scheme.warning;
     case ReadinessBand.atRisk:
       return scheme.danger;
+    case ReadinessBand.notEnoughData:
+      // Neutral on purpose: an unscored dial must not read as a verdict.
+      return scheme.outline;
   }
 }
 

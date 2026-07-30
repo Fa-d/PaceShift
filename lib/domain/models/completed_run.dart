@@ -41,13 +41,14 @@ abstract class CompletedRun with _$CompletedRun {
   /// Whether this session counts as running mileage/fitness (excludes walks/hikes).
   bool get isRun => activityType.isRun;
 
-  /// Pace formatted as `m:ss /km`, e.g. `5:42 /km`.
-  String get formattedPace {
-    final total = avgPaceSecPerKm.round();
-    final m = total ~/ 60;
-    final s = total % 60;
-    return '$m:${s.toString().padLeft(2, '0')} /km';
-  }
+  /// Whether a real duration was recorded.
+  ///
+  /// [durationSec] is non-nullable, so `0` is the "unknown" sentinel: a run
+  /// logged with neither an explicit time nor a target duration stores 0, and
+  /// [avgPaceSecPerKm] is then 0 too. The distance is still real — such a run
+  /// counts toward volume and the streak — but its time and pace must render
+  /// as unknown rather than as "0m" at "0:00 /km".
+  bool get hasDuration => durationSec > 0;
 }
 
 /// Computes average pace (sec/km) from distance and duration, guarding against

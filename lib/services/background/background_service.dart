@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../../core/formatting.dart';
 import '../../data/db/app_database.dart';
 import '../../data/health/health_service.dart';
 import '../../data/repositories/scheduler_repository.dart';
@@ -63,11 +64,10 @@ void callbackDispatcher() {
       if (result.isSuccess && result.newRuns > 0) {
         final notifier = NotificationService();
         await notifier.showPostSync(
-          '${result.totalKm.toStringAsFixed(1)} km logged from your watch.',
+          '${settings.units.distance(result.totalKm)} logged from your watch.',
         );
       }
-      // Reference settings so the analyzer keeps the (useful) fetch above.
-      debugPrint('Background task $task ran (units: ${settings.units.name}).');
+      debugPrint('Background task $task ran.');
       return true;
     } catch (e) {
       debugPrint('Background task failed: $e');

@@ -153,7 +153,7 @@ class _PlanSpine extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = ref.watch(todayProvider);
-    final week = (daysBetween(plan.startDate, t) ~/ 7) + 1;
+    final week = planWeekClamped(plan.startDate, t);
     final daysLeft = daysBetween(t, plan.raceDate);
 
     // One flexible line: a fixed Row overflows on a narrow screen or at a
@@ -745,7 +745,9 @@ class _ReadinessGlance extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final readiness = ref.watch(readinessProvider);
-    final score = readiness?.score ?? 0;
+    // No signal yet means no arc and no number — see ReadinessScore.hasSignal.
+    final scored = readiness != null && readiness.hasSignal;
+    final score = scored ? readiness.score : 0;
     final color = readiness == null
         ? scheme.outline
         : readinessColor(readiness.band, scheme);
@@ -789,7 +791,7 @@ class _ReadinessGlance extends ConsumerWidget {
                         backgroundColor: scheme.surfaceContainerHighest,
                         color: color,
                       ),
-                      Text('${(score * t).round()}',
+                      Text(scored ? '${(score * t).round()}' : '—',
                           style: theme.textTheme.labelMedium),
                     ],
                   ),
@@ -863,8 +865,13 @@ class _WeekGlance extends ConsumerWidget {
     final completed =
         ref.watch(completedRunsProvider).value ?? const <CompletedRun>[];
 
-    // The training week containing today (Mon–Sun).
-    final weekStart = previousOrSameWeekday(today, DateTime.monday);
+    // The training week containing today. Derived from the plan's own start
+    // date rather than an independent Monday anchor, so this strip and the
+    // Progress chart can never disagree about which runs are "this week".
+    final plan = ref.watch(activePlanProvider).value;
+    final weekStart = plan == null
+        ? previousOrSameWeekday(today, DateTime.monday)
+        : planWeekStart(plan.startDate, planWeek(plan.startDate, today));
     final weekEnd = addDays(weekStart, 7);
     final weekRuns = runs.where((r) =>
         !r.scheduledDate.isBefore(weekStart) &&
@@ -872,8 +879,11 @@ class _WeekGlance extends ConsumerWidget {
         r.type.isRun);
     final plannedKm =
         weekRuns.fold<double>(0, (s, r) => s + (r.targetDistanceKm ?? 0));
+    // `c.isRun` matters: without it a Sunday hike raised this figure while the
+    // Progress bars — which do filter — stayed put.
     final doneKm = completed
-        .where((c) => !c.date.isBefore(weekStart) && c.date.isBefore(weekEnd))
+        .where((c) =>
+            c.isRun && !c.date.isBefore(weekStart) && c.date.isBefore(weekEnd))
         .fold<double>(0, (s, c) => s + c.actualDistanceKm);
     final pct = plannedKm <= 0 ? 0.0 : (doneKm / plannedKm).clamp(0.0, 1.0);
 
@@ -897,7 +907,7 @@ class _WeekGlance extends ConsumerWidget {
                   value: units.toDisplay(doneKm),
                   // The unit label came from a hardcoded ' km' here, so this
                   // number stayed metric no matter what the athlete chose.
-                  format: (n) => '${n.round()} / '
+                  format: (n) => '${formatDecimal(n)} / '
                       '${units.distanceValue(plannedKm)} ${units.distanceLabel}',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(color: scheme.primary),

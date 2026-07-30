@@ -58,6 +58,22 @@ abstract class PlannedRun with _$PlannedRun {
   /// Whether this run still needs doing (pending and in the future/today).
   bool get isOpen => status == RunStatus.pending;
 
+  /// Whether this run has come due as of [asOf] — its day has fully passed, or
+  /// it is already done.
+  ///
+  /// A run scheduled *for today* is deliberately not due yet: judging it at
+  /// 09:00 on long-run Saturday zeroes the streak and dents the readiness
+  /// consistency score for a run the athlete still has all day to do. Shared by
+  /// the streak and the readiness scorer so the two can never disagree about
+  /// what counts as missed.
+  bool isDueBy(DateTime asOf) {
+    if (status == RunStatus.completed) return true;
+    final d = DateTime(asOf.year, asOf.month, asOf.day);
+    final s = DateTime(
+        scheduledDate.year, scheduledDate.month, scheduledDate.day);
+    return d.isAfter(s);
+  }
+
   /// True if the run was moved from where it originally sat.
   bool get wasShifted => !_sameDate(scheduledDate, originalDate);
 

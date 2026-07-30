@@ -118,12 +118,10 @@ class _RunDetailBody extends ConsumerWidget {
               runSpacing: Space.lg,
               children: [
                 MetricBlock(
-                    value: units.distance(run.targetDistanceKm),
                     label: 'Distance',
                     countTo: units.toDisplay(run.targetDistanceKm ?? 0),
                     countFormat: (n) =>
-                        '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)}'
-                        ' ${units.distanceLabel}'),
+                        '${formatDecimal(n)} ${units.distanceLabel}'),
                 if (run.targetPaceSecPerKm != null)
                   MetricBlock(
                       value: units.pace(run.targetPaceSecPerKm!),
@@ -199,17 +197,19 @@ class _ActualCard extends ConsumerWidget {
             runSpacing: Space.lg,
             children: [
               MetricBlock(
-                  value: units.distance(completed.actualDistanceKm),
                   label: 'Distance',
                   countTo: units.toDisplay(completed.actualDistanceKm),
                   countFormat: (n) =>
-                      '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)}'
-                      ' ${units.distanceLabel}'),
-              MetricBlock(
-                  value: formatDuration(completed.durationSec),
-                  label: 'Time',
-                  countTo: completed.durationSec,
-                  countFormat: (n) => formatDuration(n.round())),
+                      '${formatDecimal(n)} ${units.distanceLabel}'),
+              // A run logged without a duration stores 0 as the "unknown"
+              // sentinel; counting up to "0m" would claim it took no time.
+              if (completed.hasDuration)
+                MetricBlock(
+                    label: 'Time',
+                    countTo: completed.durationSec,
+                    countFormat: (n) => formatDuration(n.round()))
+              else
+                const MetricBlock(value: '—', label: 'Time'),
               MetricBlock(
                   value: units.pace(completed.avgPaceSecPerKm), label: 'Pace'),
               if (completed.avgHr != null)

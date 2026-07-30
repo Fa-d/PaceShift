@@ -10,6 +10,7 @@ import '../providers/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/count_up_text.dart';
 import '../widgets/readiness_dial.dart';
+import 'chart_math.dart';
 import 'stats_data.dart';
 
 /// fl_chart mark geometry. Bar corner rounding is a property of the mark, not
@@ -32,9 +33,24 @@ class StatsScreen extends ConsumerWidget {
     final readiness = ref.watch(readinessProvider);
     final prediction = ref.watch(racePredictionProvider);
 
+    // Two distinct empty states. Keying off the volume list alone made the
+    // second unreachable — any plan produces planned bars — so an athlete with
+    // nothing logged saw a chart of all-zero completed bars instead.
+    if (!stats.hasPlanData) {
+      return const Scaffold(
+        body: SafeArea(
+          child: EmptyState(
+            icon: Icons.insights_rounded,
+            title: 'No plan yet',
+            message: 'Create a plan and your progress will appear here.',
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SafeArea(
-        child: stats.isEmpty
+        child: !stats.hasLoggedWork
             ? const EmptyState(
                 icon: Icons.insights_rounded,
                 title: 'No stats yet',
@@ -74,7 +90,6 @@ class StatsScreen extends ConsumerWidget {
                       Expanded(
                         child: _StatTile(
                           icon: Icons.local_fire_department_rounded,
-                          value: '${stats.completionStreak}',
                           label: 'run streak',
                           color: scheme.primary,
                           countTo: stats.completionStreak,
@@ -85,22 +100,20 @@ class StatsScreen extends ConsumerWidget {
                       Expanded(
                         child: _StatTile(
                           icon: Icons.route_rounded,
-                          value: units.distanceValue(stats.totalCompletedKm),
                           label: 'total ${units.distanceLabel}',
                           color: scheme.info,
                           countTo: units.toDisplay(stats.totalCompletedKm),
-                          countFormat: (n) => n.round().toString(),
+                          countFormat: formatDecimal,
                         ),
                       ),
                       const SizedBox(width: Space.md),
                       Expanded(
                         child: _StatTile(
                           icon: Icons.terrain_rounded,
-                          value: units.distanceValue(stats.longestRunKm),
                           label: 'longest ${units.distanceLabel}',
                           color: scheme.success,
                           countTo: units.toDisplay(stats.longestRunKm),
-                          countFormat: (n) => n.round().toString(),
+                          countFormat: formatDecimal,
                         ),
                       ),
                     ],
@@ -117,6 +130,18 @@ class StatsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: Space.sm),
                   const _LegendRow(),
+                  // Base-building work has no planned volume to sit beside, so
+                  // it stays off the bars but is still acknowledged.
+                  if (stats.prePlanCompletedKm > 0) ...[
+                    const SizedBox(height: Space.sm),
+                    Text(
+                      '+ ${units.distance(stats.prePlanCompletedKm)} logged '
+                      'before this plan',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
                   const SizedBox(height: Space.lg),
                   const SectionHeader('Long-run progression'),
                   QuietSurface(
@@ -137,19 +162,20 @@ class StatsScreen extends ConsumerWidget {
 class _StatTile extends StatelessWidget {
   const _StatTile({
     required this.icon,
-    required this.value,
     required this.label,
     required this.color,
-    this.countTo,
-    this.countFormat,
+    required this.countTo,
+    required this.countFormat,
   });
 
   final IconData icon;
-  final String value;
   final String label;
   final Color color;
-  final num? countTo;
-  final String Function(num)? countFormat;
+
+  /// The tile always counts up, so there is no second `value` string that can
+  /// silently shadow this one — that pairing rendered a 0.6 km total as "0".
+  final num countTo;
+  final String Function(num) countFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -162,11 +188,7 @@ class _StatTile extends StatelessWidget {
         children: [
           Icon(icon, color: color),
           const SizedBox(height: Space.sm),
-          if (countTo != null && countFormat != null)
-            CountUpText(
-                value: countTo!, format: countFormat!, style: valueStyle)
-          else
-            Text(value, style: valueStyle),
+          CountUpText(value: countTo, format: countFormat, style: valueStyle),
           Text(label,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
@@ -186,15 +208,20 @@ class _WeeklyVolumeChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final maxY = units.toDisplay(data.fold<double>(
-            0,
-            (m, w) => [m, w.plannedKm, w.completedKm]
-                .reduce((a, b) => a > b ? a : b))) *
-        1.2;
+    // One ceiling, and the gridline interval derived from it. These used to be
+    // computed independently — the axis used a fallback while the interval used
+    // the raw value — so the gridlines didn't match the axis they sat on.
+    final axisMax = niceAxisMax(
+      units.toDisplay(data.fold<double>(
+          0,
+          (m, w) =>
+              [m, w.plannedKm, w.completedKm].reduce((a, b) => a > b ? a : b))),
+      fallback: 10,
+    );
 
     return BarChart(
       BarChartData(
-        maxY: maxY <= 0 ? 10 : maxY,
+        maxY: axisMax,
         alignment: BarChartAlignment.spaceAround,
         barTouchData: BarTouchData(enabled: true),
         gridData: FlGridData(
@@ -213,8 +240,8 @@ class _WeeklyVolumeChart extends StatelessWidget {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 30,
-              interval: (maxY / 4).clamp(5, 100).toDouble(),
-              getTitlesWidget: (v, meta) => Text(v.toInt().toString(),
+              interval: niceInterval(axisMax),
+              getTitlesWidget: (v, meta) => Text(formatDecimal(v),
                   style: theme.textTheme.labelSmall),
             ),
           ),
@@ -271,14 +298,16 @@ class _LongRunChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final maxY = units.toDisplay(
-            data.fold<double>(0, (m, p) => p.targetKm > m ? p.targetKm : m)) *
-        1.2;
+    final axisMax = niceAxisMax(
+      units.toDisplay(
+          data.fold<double>(0, (m, p) => p.targetKm > m ? p.targetKm : m)),
+      fallback: 35,
+    );
 
     return LineChart(
       LineChartData(
         minY: 0,
-        maxY: maxY <= 0 ? 35 : maxY,
+        maxY: axisMax,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
@@ -295,9 +324,9 @@ class _LongRunChart extends StatelessWidget {
             sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 30,
-                interval: (maxY / 4).clamp(5, 100).toDouble(),
+                interval: niceInterval(axisMax),
                 getTitlesWidget: (v, meta) =>
-                    Text(v.toInt().toString(), style: theme.textTheme.labelSmall)),
+                    Text(formatDecimal(v), style: theme.textTheme.labelSmall)),
           ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -328,18 +357,21 @@ class _LongRunChart extends StatelessWidget {
             dashArray: [6, 4],
             dotData: const FlDotData(show: false),
           ),
-          // Actual achieved (only points that exist).
-          LineChartBarData(
-            spots: [
-              for (var i = 0; i < data.length; i++)
-                if (data[i].actualKm != null)
+          // Actual achieved — one series per unbroken stretch of weeks. A
+          // single series over non-adjacent points curves straight across the
+          // gap, drawing long runs that were never done.
+          for (final segment
+              in contiguousSegments([for (final p in data) p.actualKm != null]))
+            LineChartBarData(
+              spots: [
+                for (var i = segment.first; i <= segment.last; i++)
                   FlSpot(i.toDouble(), units.toDisplay(data[i].actualKm!)),
-            ],
-            isCurved: true,
-            color: theme.colorScheme.primary,
-            barWidth: 3,
-            dotData: const FlDotData(show: true),
-          ),
+              ],
+              isCurved: true,
+              color: theme.colorScheme.primary,
+              barWidth: 3,
+              dotData: const FlDotData(show: true),
+            ),
         ],
       ),
       duration: AppMotion.on(context) ? AppMotion.fill : Duration.zero,

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../domain/models/enums.dart';
+import '../domain/models/workout_segment.dart';
 
 /// Human-readable labels and number formatting for the UI.
 
@@ -33,6 +34,27 @@ String runStatusLabel(RunStatus status) {
       return 'Moved';
     case RunStatus.dropped:
       return 'Dropped';
+  }
+}
+
+/// Display label for a workout segment's role, e.g. `Warm-up`.
+///
+/// Lifted out of `run_detail_screen.dart` so the plan screen's segment preview
+/// reuses the same vocabulary rather than carrying a private copy.
+String segmentKindLabel(SegmentKind kind) {
+  switch (kind) {
+    case SegmentKind.warmup:
+      return 'Warm-up';
+    case SegmentKind.hard:
+      return 'Hard';
+    case SegmentKind.recovery:
+      return 'Recovery';
+    case SegmentKind.tempo:
+      return 'Tempo';
+    case SegmentKind.steady:
+      return 'Steady';
+    case SegmentKind.cooldown:
+      return 'Cool-down';
   }
 }
 

@@ -289,8 +289,8 @@ class _SegmentsCard extends StatelessWidget {
           for (final seg in run.segments!)
             ListTile(
               dense: true,
-              leading: Icon(_iconFor(seg.kind), color: color, size: 20),
-              title: Text(seg.label ?? _labelFor(seg.kind)),
+              leading: Icon(SegmentPalette.icon(seg.kind), color: color, size: 20),
+              title: Text(seg.label ?? segmentKindLabel(seg.kind)),
               subtitle: Text(_detail(seg)),
               trailing: seg.targetPaceSecPerKm == null
                   ? null
@@ -308,22 +308,4 @@ class _SegmentsCard extends StatelessWidget {
         : (s.durationSec != null ? formatDuration(s.durationSec!) : '');
     return s.reps > 1 ? '${s.reps} × $amount' : amount;
   }
-
-  String _labelFor(SegmentKind k) => switch (k) {
-        SegmentKind.warmup => 'Warm-up',
-        SegmentKind.hard => 'Hard',
-        SegmentKind.recovery => 'Recovery',
-        SegmentKind.tempo => 'Tempo',
-        SegmentKind.steady => 'Steady',
-        SegmentKind.cooldown => 'Cool-down',
-      };
-
-  IconData _iconFor(SegmentKind k) => switch (k) {
-        SegmentKind.warmup => Icons.local_fire_department_outlined,
-        SegmentKind.hard => Icons.bolt_rounded,
-        SegmentKind.recovery => Icons.self_improvement_rounded,
-        SegmentKind.tempo => Icons.speed_rounded,
-        SegmentKind.steady => Icons.trending_flat_rounded,
-        SegmentKind.cooldown => Icons.ac_unit_rounded,
-      };
 }

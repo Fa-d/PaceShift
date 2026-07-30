@@ -2,6 +2,8 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/models/enums.dart';
+import '../domain/progress/plan_phase.dart';
+import '../domain/models/workout_segment.dart';
 import '../domain/readiness/readiness_scorer.dart';
 import 'design.dart';
 
@@ -185,6 +187,67 @@ class RunPalette {
       case RunType.rest:
         return Icons.bedtime_rounded;
     }
+  }
+}
+
+/// Colour language for a workout segment, the structural-workout sibling of
+/// [RunPalette]. Lifted out of `run_detail_screen.dart`'s private `_iconFor` so
+/// the segment bar and the run-detail list read the same way.
+///
+/// Every colour resolves through the semantic `AppColors` layer — warmup/steady
+/// → info, hard → primary, recovery → success, tempo → warning, cooldown →
+/// accentCool — so a tempo block and a "moved run" are the same amber rather
+/// than two hexes that drift apart.
+class SegmentPalette {
+  SegmentPalette._();
+
+  static Color of(SegmentKind kind, ColorScheme scheme) {
+    switch (kind) {
+      case SegmentKind.warmup:
+      case SegmentKind.steady:
+        return scheme.info;
+      case SegmentKind.hard:
+        return scheme.primary;
+      case SegmentKind.recovery:
+        return scheme.success;
+      case SegmentKind.tempo:
+        return scheme.warning;
+      case SegmentKind.cooldown:
+        return scheme.accentCool;
+    }
+  }
+
+  static IconData icon(SegmentKind kind) {
+    switch (kind) {
+      case SegmentKind.warmup:
+        return Icons.local_fire_department_outlined;
+      case SegmentKind.hard:
+        return Icons.bolt_rounded;
+      case SegmentKind.recovery:
+        return Icons.self_improvement_rounded;
+      case SegmentKind.tempo:
+        return Icons.speed_rounded;
+      case SegmentKind.steady:
+        return Icons.trending_flat_rounded;
+      case SegmentKind.cooldown:
+        return Icons.ac_unit_rounded;
+    }
+  }
+}
+
+/// Colour for a plan phase. Shares the semantic ramp with the rest of the app,
+/// so the plan hero's tint and the volume ramp's bars stay consistent and read
+/// correctly in both themes.
+Color phaseColor(PlanPhase phase, ColorScheme scheme) {
+  switch (phase) {
+    case PlanPhase.base:
+      return scheme.info;
+    case PlanPhase.build:
+      return scheme.primary;
+    case PlanPhase.peak:
+      return scheme.warning;
+    case PlanPhase.taper:
+      return scheme.accentCool;
   }
 }
 

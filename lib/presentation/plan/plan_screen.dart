@@ -1,26 +1,26 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/date_utils.dart';
 import '../../core/design.dart';
 import '../../core/errors.dart';
-import '../../core/formatting.dart';
 import '../../core/motion.dart';
-import '../../core/theme.dart';
-import '../../domain/models/enums.dart';
 import '../../domain/models/planned_run.dart';
+import '../../domain/models/training_plan.dart';
 import '../providers/providers.dart';
 import '../widgets/common.dart';
-import '../widgets/count_up_text.dart';
-import '../widgets/pressable.dart';
-import '../widgets/run_card.dart';
+import 'plan_filter.dart';
+import 'widgets/month_heatmap.dart';
+import 'widgets/plan_filter_bar.dart';
+import 'widgets/plan_hero.dart';
+import 'widgets/week_block.dart';
 
-/// Gap between calendar day cells in the 7-wide month grid.
-const double _cellGutter = 2;
-
+/// Plan screen redesign: race countdown, volume ramp, phase, week-by-week
+/// completion and an intensity-heatmap month view. See
+/// `~/.claude/plans/the-plan-pages-ui-modular-raven.md`.
 enum _PlanView { week, month }
 
 class PlanScreen extends ConsumerStatefulWidget {
@@ -30,350 +30,368 @@ class PlanScreen extends ConsumerStatefulWidget {
   ConsumerState<PlanScreen> createState() => _PlanScreenState();
 }
 
+/// Context shown in the pinned bar once the hero has scrolled away.
+typedef _HeaderInfo = ({int week, int totalWeeks, int daysLeft});
+
 class _PlanScreenState extends ConsumerState<PlanScreen> {
   _PlanView _view = _PlanView.week;
+  PlanFilter _filter = const PlanFilter();
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final runsAsync = ref.watch(plannedRunsProvider);
-
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  Space.screenH, Space.lg, Space.screenH, Space.sm),
-              child: Row(
-                children: [
-                  Text('Plan', style: theme.textTheme.headlineMedium),
-                  const Spacer(),
-                  SegmentedButton<_PlanView>(
-                    segments: const [
-                      ButtonSegment(
-                          value: _PlanView.week,
-                          icon: Icon(Icons.view_week_rounded)),
-                      ButtonSegment(
-                          value: _PlanView.month,
-                          icon: Icon(Icons.calendar_month_rounded)),
-                    ],
-                    selected: {_view},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (s) {
-                      if (AppMotion.on(context)) {
-                        HapticFeedback.selectionClick();
-                      }
-                      setState(() => _view = s.first);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: runsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                // Never `'$e'` — that rendered a DriftWrappedException, SQL
-                // and all, in the middle of the screen.
-                error: (e, _) => SurfaceError(
-                  message: friendlyError(e,
-                      fallback: 'We couldn’t open your plan just now.'),
-                  onRetry: () => ref.invalidate(plannedRunsProvider),
-                ),
-                data: (runs) {
-                  if (runs.isEmpty) {
-                    return const EmptyState(
-                      icon: Icons.event_note_rounded,
-                      title: 'No plan yet',
-                      message: 'Generate a plan to see your schedule here.',
-                    );
-                  }
-                  return PageTransitionSwitcher(
-                    duration: AppMotion.medium,
-                    transitionBuilder: (child, primary, secondary) =>
-                        SharedAxisTransition(
-                      animation: primary,
-                      secondaryAnimation: secondary,
-                      transitionType: SharedAxisTransitionType.horizontal,
-                      fillColor: Colors.transparent,
-                      child: child,
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey(_view),
-                      child: _view == _PlanView.week
-                          ? _WeekListView(runs: runs)
-                          : _MonthView(runs: runs),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WeekListView extends ConsumerWidget {
-  const _WeekListView({required this.runs});
-
-  final List<PlannedRun> runs;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final today = ref.watch(todayProvider);
-    final units = ref.watch(unitsProvider);
-    final byWeek = <int, List<PlannedRun>>{};
-    for (final r in runs) {
-      byWeek.putIfAbsent(r.weekIndex, () => []).add(r);
-    }
-    final weeks = byWeek.keys.toList()..sort();
-
-    // Which week to mark "• this week". Derived from the plan's start date, not
-    // from the first run within the last 6 days — that folded over an unsorted
-    // list, so last Wednesday's run could win and mark the *previous* week.
-    final plan = ref.watch(activePlanProvider).value;
-    final currentWeek =
-        plan == null ? null : planWeekClamped(plan.startDate, today);
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-          Space.screenH, Space.xs, Space.screenH, Space.screenBottom),
-      itemCount: weeks.length,
-      itemBuilder: (context, i) {
-        final week = weeks[i];
-        final weekRuns = byWeek[week]!
-          ..sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
-        final volume = units.toDisplay(weekRuns.fold<double>(
-            0, (s, r) => s + (r.type.isRun ? (r.targetDistanceKm ?? 0) : 0)));
-        final isCurrent = week == currentWeek;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionHeader(
-              'Week $week${isCurrent ? '  • this week' : ''}',
-              trailing: CountUpText(
-                value: volume,
-                format: (n) => '${formatDecimal(n)} ${units.distanceLabel}',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.primary),
-              ),
-            ),
-            ...weekRuns.map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: Space.sm),
-                  child: Pressable(
-                    child: RunCard(
-                      run: r,
-                      onTap: () => context.push('/run/${r.id}'),
-                    ),
-                  ),
-                )),
-            const SizedBox(height: Space.sm),
-          ],
-        ).reveal(context);
-      },
-    );
-  }
-}
-
-class _MonthView extends ConsumerStatefulWidget {
-  const _MonthView({required this.runs});
-
-  final List<PlannedRun> runs;
-
-  @override
-  ConsumerState<_MonthView> createState() => _MonthViewState();
-}
-
-class _MonthViewState extends ConsumerState<_MonthView> {
-  late DateTime _month;
+  final ScrollController _controller = ScrollController();
+  // 0 at the top, 1 once the hero has scrolled away — drives the pinned bar's
+  // crossfading title and the Today FAB. A ValueNotifier so neither needs a
+  // per-frame rebuild of the whole screen.
+  final ValueNotifier<double> _collapse = ValueNotifier(0);
+  final Map<int, GlobalKey> _weekKeys = {};
+  bool _jumped = false;
 
   @override
   void initState() {
     super.initState();
-    final t = today();
-    _month = DateTime(t.year, t.month);
+    _controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onScroll);
+    _controller.dispose();
+    _collapse.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_controller.hasClients) return;
+    // The hero is the first scrolling sliver; this only has to be close.
+    const heroExtent = 320;
+    _collapse.value =
+        (_controller.offset / heroExtent).clamp(0.0, 1.0);
+  }
+
+  /// Land a week at the top of the scroll. Animated for the FAB / ramp tap;
+  /// instant otherwise.
+  void _revealTop(int week, {required bool animate}) {
+    final ctx = _weekKeys[week]?.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.0,
+      duration:
+          animate && AppMotion.on(context) ? AppMotion.medium : Duration.zero,
+      curve: AppMotion.standard,
+    );
+  }
+
+  /// On open only: bring the current week into view with the *minimal* scroll.
+  /// A current week that already sits on screen — e.g. week 1 of a fresh plan,
+  /// just below the hero — is left in place so the hero stays visible, instead
+  /// of being dragged to the top. `Scrollable.ensureVisible` always forces an
+  /// alignment, so this reaches for `RenderAbstractViewport` directly to check
+  /// whether the week is already fully within the viewport.
+  void _revealCurrentMinimally(int week) {
+    if (!_controller.hasClients) return;
+    final ctx = _weekKeys[week]?.currentContext;
+    final ro = ctx?.findRenderObject();
+    if (ctx == null || ro == null) return;
+    final viewport = RenderAbstractViewport.of(ro);
+    final position = _controller.position;
+    final top = viewport.getOffsetToReveal(ro, 0.0).offset;
+    final bottom = viewport.getOffsetToReveal(ro, 1.0).offset;
+    // Already fully within the viewport — leave it where it is.
+    if (position.pixels <= top &&
+        bottom <= position.pixels + position.viewportDimension) {
+      return;
+    }
+    final target = (position.pixels < top ? top : bottom)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    _controller.jumpTo(target);
+  }
+
+  /// Ramp tap: switch to the week view (if needed) then jump to the week.
+  void _goToWeek(int week) {
+    if (_view != _PlanView.week) {
+      setState(() => _view = _PlanView.week);
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _revealTop(week, animate: true));
+    } else {
+      _revealTop(week, animate: true);
+    }
+  }
+
+  Map<int, List<PlannedRun>> _groupByWeek(List<PlannedRun> runs) {
+    final byWeek = <int, List<PlannedRun>>{};
+    for (final r in runs) {
+      byWeek.putIfAbsent(r.weekIndex, () => []).add(r);
+    }
+    for (final w in byWeek.values) {
+      w.sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
+    }
+    return byWeek;
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final byDate = <DateTime, List<PlannedRun>>{};
-    for (final r in widget.runs) {
-      byDate.putIfAbsent(dateOnly(r.scheduledDate), () => []).add(r);
-    }
+    final runsAsync = ref.watch(plannedRunsProvider);
 
-    final firstOfMonth = DateTime(_month.year, _month.month, 1);
-    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
-    final leadingBlanks = firstOfMonth.weekday - 1; // Mon=1
-    final cells = <DateTime?>[
-      ...List.filled(leadingBlanks, null),
-      for (var d = 1; d <= daysInMonth; d++)
-        DateTime(_month.year, _month.month, d),
-    ];
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: Space.screenH, vertical: Space.xs),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => setState(() =>
-                    _month = DateTime(_month.year, _month.month - 1)),
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Expanded(
-                child: Text('${monthName(_month.month)} ${_month.year}',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium),
-              ),
-              IconButton(
-                onPressed: () => setState(() =>
-                    _month = DateTime(_month.year, _month.month + 1)),
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ],
+    return Scaffold(
+      body: SafeArea(
+        child: runsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          // Never `'$e'` — that rendered a DriftWrappedException, SQL and all,
+          // in the middle of the screen.
+          error: (e, _) => SurfaceError(
+            message: friendlyError(e,
+                fallback: 'We couldn’t open your plan just now.'),
+            onRetry: () => ref.invalidate(plannedRunsProvider),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-          child: Row(
-            children: [
-              for (var d = 1; d <= 7; d++)
-                Expanded(
-                  child: Center(
-                    child: Text(weekdayName(d).substring(0, 1),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: Space.xs),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(
-                Space.lg, Space.xs, Space.lg, Space.xl),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 0.72,
-            ),
-            itemCount: cells.length,
-            itemBuilder: (context, i) {
-              final date = cells[i];
-              if (date == null) return const SizedBox.shrink();
-              final dayRuns = byDate[date] ?? const [];
-              return Pressable(
-                haptic: dayRuns.any((r) => r.type.isRun),
-                child: _MonthDayCell(date: date, runs: dayRuns),
-              ).reveal(context, delay: Duration(milliseconds: 12 * i));
-            },
-          ),
-        ),
-        if (byDate.isNotEmpty) const _MonthLegend(),
-      ],
-    );
-  }
-}
-
-class _MonthDayCell extends ConsumerWidget {
-  const _MonthDayCell({required this.date, required this.runs});
-
-  final DateTime date;
-  final List<PlannedRun> runs;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isToday = isSameDate(date, ref.watch(todayProvider));
-    final hasRun = runs.any((r) => r.type.isRun);
-
-    return InkWell(
-      onTap: hasRun
-          ? () {
-              final run = runs.firstWhere((r) => r.type.isRun);
-              context.push('/run/${run.id}');
+          data: (runs) {
+            if (runs.isEmpty) {
+              return const EmptyState(
+                icon: Icons.event_note_rounded,
+                title: 'No plan yet',
+                message: 'Generate a plan to see your schedule here.',
+              );
             }
-          : null,
-      borderRadius: AppRadius.smAll,
-      child: Container(
-        // Hairline gutter between grid cells — mark geometry, not layout
-        // rhythm, so deliberately not a Space token.
-        margin: const EdgeInsets.all(_cellGutter),
-        decoration: BoxDecoration(
-          color: isToday ? scheme.primaryContainer : null,
-          borderRadius: AppRadius.smAll,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('${date.day}',
-                style: isToday
-                    ? theme.textTheme.labelMedium
-                    : theme.textTheme.bodySmall),
-            const SizedBox(height: Space.xs),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 2,
-              runSpacing: 2,
+            final plan = ref.watch(activePlanProvider).value;
+            if (plan == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final today = ref.watch(todayProvider);
+            final currentWeek = planWeekClamped(plan.startDate, today);
+            final planInfo = (
+              week: currentWeek,
+              totalWeeks: plan.totalWeeks,
+              daysLeft: daysBetween(today, plan.raceDate),
+            );
+
+            // Open anchored on the current week, once.
+            if (!_jumped && _view == _PlanView.week) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_weekKeys[currentWeek]?.currentContext != null) {
+                  _jumped = true;
+                  _revealCurrentMinimally(currentWeek);
+                }
+              });
+            }
+
+            final scaler = MediaQuery.textScalerOf(context);
+            final headerExtent = scaler.scale(60).clamp(56.0, 144.0);
+
+            return Stack(
               children: [
-                for (final r in runs.where((r) => r.type.isRun).take(3))
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: statusColor(r.status, scheme),
-                      shape: BoxShape.circle,
+                CustomScrollView(
+                  controller: _controller,
+                  slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _PlanHeaderDelegate(
+                        extent: headerExtent,
+                        collapse: _collapse,
+                        view: _view,
+                        onViewChanged: (v) {
+                          if (AppMotion.on(context)) {
+                            HapticFeedback.selectionClick();
+                          }
+                          setState(() => _view = v);
+                        },
+                        info: planInfo,
+                      ),
+                    ),
+                    if (_view == _PlanView.week) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              Space.screenH, Space.sm, Space.screenH, 0),
+                          child: PlanHero(onJumpToWeek: _goToWeek),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Space.md),
+                          child: PlanFilterBar(
+                            filter: _filter,
+                            onChanged: (f) => setState(() => _filter = f),
+                            showRunsOnly:
+                                runs.any((r) => !r.type.isRun),
+                          ),
+                        ),
+                      ),
+                    ],
+                    SliverToBoxAdapter(
+                      child: PageTransitionSwitcher(
+                        duration: AppMotion.medium,
+                        transitionBuilder: (child, primary, secondary) =>
+                            SharedAxisTransition(
+                          animation: primary,
+                          secondaryAnimation: secondary,
+                          transitionType: SharedAxisTransitionType.horizontal,
+                          fillColor: Colors.transparent,
+                          child: child,
+                        ),
+                        child: KeyedSubtree(
+                          key: ValueKey(_view),
+                          child: _view == _PlanView.week
+                              ? _weekList(runs, plan, today, currentWeek)
+                              : MonthHeatmap(runs: runs, plan: plan),
+                        ),
+                      ),
+                    ),
+                    const SliverPadding(
+                        padding: EdgeInsets.only(bottom: Space.screenBottom)),
+                  ],
+                ),
+                // Today FAB: week view only, once the hero has scrolled away.
+                if (_view == _PlanView.week)
+                  Positioned(
+                    right: Space.lg,
+                    bottom: Space.lg,
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _collapse,
+                      builder: (context, c, child) =>
+                          c > 0.85 ? child! : const SizedBox.shrink(),
+                      child: FloatingActionButton.extended(
+                        onPressed: () =>
+                            _revealTop(currentWeek, animate: true),
+                        icon: const Icon(Icons.my_location_rounded),
+                        label: const Text('Today'),
+                      ),
                     ),
                   ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
-}
 
-class _MonthLegend extends StatelessWidget {
-  const _MonthLegend();
+  Widget _weekList(List<PlannedRun> runs, TrainingPlan plan, DateTime today,
+      int currentWeek) {
+    final byWeek = _groupByWeek(runs);
+    final visibleByWeek = _groupByWeek(_filter.apply(runs, today));
+    final visibleWeeks = visibleByWeek.keys.toList()..sort();
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    Widget dot(RunStatus s) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: Space.sm,
-              height: Space.sm,
-              decoration: BoxDecoration(
-                  color: statusColor(s, scheme), shape: BoxShape.circle),
-            ),
-            const SizedBox(width: Space.xs),
-            Text(runStatusLabel(s),
-                style: Theme.of(context).textTheme.labelSmall),
-          ],
-        );
+    if (visibleWeeks.isEmpty) {
+      return SizedBox(
+        height: 440,
+        child: EmptyState(
+          icon: Icons.filter_alt_off_outlined,
+          title: 'No runs match',
+          message: 'Try widening your filters to see more of the plan.',
+          action: FilledButton.tonal(
+            onPressed: () => setState(() => _filter = const PlanFilter()),
+            child: const Text('Clear filters'),
+          ),
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.lg),
-      child: Wrap(
-        spacing: Space.md,
-        runSpacing: Space.sm,
-        alignment: WrapAlignment.center,
+      padding: const EdgeInsets.fromLTRB(
+          Space.screenH, Space.sm, Space.screenH, Space.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          dot(RunStatus.pending),
-          dot(RunStatus.completed),
-          dot(RunStatus.missed),
-          dot(RunStatus.shifted),
+          for (final week in visibleWeeks)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.lg),
+              child: WeekBlock(
+                key: _weekKeys.putIfAbsent(week, () => GlobalKey()),
+                week: week,
+                plan: plan,
+                allWeekRuns: byWeek[week]!,
+                visibleRuns: visibleByWeek[week]!,
+                isCurrent: week == currentWeek,
+              ),
+            ),
         ],
       ),
     );
   }
+}
+
+/// The pinned, slim top bar. The title crossfades `Plan` →
+/// `Week N of M · Dd` as the hero scrolls away.
+class _PlanHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _PlanHeaderDelegate({
+    required this.extent,
+    required this.collapse,
+    required this.view,
+    required this.onViewChanged,
+    required this.info,
+  });
+
+  final double extent;
+  final ValueNotifier<double> collapse;
+  final _PlanView view;
+  final ValueChanged<_PlanView> onViewChanged;
+  final _HeaderInfo info;
+
+  @override
+  double get minExtent => extent;
+  @override
+  double get maxExtent => extent;
+
+  String get _collapsedTitle {
+    final d = info.daysLeft;
+    if (d < 0) return 'Race complete';
+    if (d == 0) return 'Week ${info.week} of ${info.totalWeeks} · race day';
+    return 'Week ${info.week} of ${info.totalWeeks} · ${d}d';
+  }
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: Space.screenH),
+      alignment: Alignment.center,
+      child: Row(
+        children: [
+          Flexible(
+            child: ValueListenableBuilder<double>(
+              valueListenable: collapse,
+              builder: (context, c, _) {
+                final collapsed = c > 0.5;
+                return AnimatedSwitcher(
+                  duration: AppMotion.fast,
+                  child: collapsed
+                      ? Text(_collapsedTitle,
+                          key: const ValueKey('collapsed'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium)
+                      : Text('Plan',
+                          key: const ValueKey('expanded'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.headlineMedium),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: Space.sm),
+          SegmentedButton<_PlanView>(
+            segments: const [
+              ButtonSegment(
+                  value: _PlanView.week, icon: Icon(Icons.view_week_rounded)),
+              ButtonSegment(
+                  value: _PlanView.month,
+                  icon: Icon(Icons.calendar_month_rounded)),
+            ],
+            selected: {view},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => onViewChanged(s.first),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_PlanHeaderDelegate oldDelegate) =>
+      extent != oldDelegate.extent ||
+      view != oldDelegate.view ||
+      info != oldDelegate.info;
 }

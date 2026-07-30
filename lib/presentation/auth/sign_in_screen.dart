@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/design.dart';
 import '../../core/errors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -41,7 +42,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     });
     try {
       await action();
-      if (mounted && ref.read(isSignedInProvider)) Navigator.of(context).pop();
+      if (mounted && ref.read(isSignedInProvider)) context.pop();
     } catch (e) {
       // Never `'$e'`: a DioException's toString carries the API URL, the
       // status line and headers, and it was rendered to the user in red.
@@ -154,7 +155,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               if (_error != null) ...[
                 const SizedBox(height: Space.md),
                 Text(_error!,
-                    style: TextStyle(color: theme.colorScheme.error)),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.error)),
               ],
               const SizedBox(height: Space.xl),
               FilledButton(
@@ -212,7 +214,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 }
 
-/// Opens the sign-in screen (used from Settings).
-Future<void> showSignIn(BuildContext context) => Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SignInScreen()),
-    );
+/// Opens the sign-in screen.
+///
+/// Routed rather than pushed with a raw `MaterialPageRoute` — the same reason
+/// as the paywall: a screen outside the router isn't deep-linkable and isn't
+/// subject to the redirect gates.
+Future<void> showSignIn(BuildContext context) async {
+  await context.push<void>('/sign-in');
+}

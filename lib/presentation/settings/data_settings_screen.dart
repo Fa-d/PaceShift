@@ -4,6 +4,7 @@ import '../../core/design.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/api/cloud_sync_repository.dart';
+import '../auth/sign_in_screen.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/pro_gate.dart';
 import 'widgets/settings_section.dart';
@@ -84,11 +85,16 @@ class _DataSettingsScreenState extends ConsumerState<DataSettingsScreen> {
                           : () => _do(repo.pull, 'Restored from the cloud.'),
                     ),
                   ]
-                : const [
+                // A row reading "Sign in from Settings to enable cloud
+                // backup", on a Settings page, that you cannot tap. Telling
+                // someone where to go is not as good as taking them.
+                : [
                     SettingsTile(
-                      leading: Icons.cloud_off_outlined,
-                      title: 'Not signed in',
-                      subtitle: 'Sign in from Settings to enable cloud backup',
+                      leading: Icons.login_rounded,
+                      title: 'Sign in to back up',
+                      subtitle: 'Your plan and history, safe and on every '
+                          'device you own',
+                      onTap: () => showSignIn(context),
                     ),
                   ],
           ),

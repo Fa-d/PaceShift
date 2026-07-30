@@ -90,8 +90,9 @@ class QuietSurface extends StatelessWidget {
     final border = accent ?? scheme.outlineVariant;
     return Material(
       color: accent?.withValues(alpha: 0.05) ?? Colors.transparent,
-      borderRadius: AppRadius.mdAll,
       clipBehavior: Clip.antiAlias,
+      // `shape` only — Material asserts that `shape` and `borderRadius` are
+      // never both supplied, and the outline is the whole point of this tier.
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.mdAll,
         side: BorderSide(

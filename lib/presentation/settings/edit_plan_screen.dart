@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/date_utils.dart';
 import '../../core/design.dart';
@@ -326,7 +327,6 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
       _error = null;
     });
     final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
     try {
       final settingsRepo = ref.read(settingsRepositoryProvider);
       final current = await settingsRepo.getSettings();
@@ -348,7 +348,9 @@ class _EditPlanScreenState extends ConsumerState<EditPlanScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
           const SnackBar(content: Text('Plan rebuilt around your changes.')));
-      navigator.pop();
+      // `context.pop()`, not `Navigator.pop` — this is a go_router page, and
+      // the plan change also bumps the router's refreshListenable.
+      context.pop();
     } catch (e) {
       if (mounted) {
         setState(() => _error =

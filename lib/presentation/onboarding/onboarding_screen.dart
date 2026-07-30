@@ -216,7 +216,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: Space.md),
           Text(
             '$_step of $_lastStep',
             style: theme.textTheme.labelMedium
@@ -241,7 +241,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.auto_awesome_rounded, size: 20),
-          SizedBox(width: 8),
+          SizedBox(width: Space.sm),
           Text('Generate my plan'),
         ],
       );
@@ -262,7 +262,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: const Text('Back'),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: Space.md),
           Expanded(
             flex: 5,
             child: FilledButton(
@@ -310,13 +310,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             style: theme.textTheme.headlineSmall
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.sm),
           Text(
             subtitle,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: Space.xl),
           ...children,
         ]
             .animate(interval: 55.ms)
@@ -349,16 +349,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               height: 60,
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: Space.xl),
           Text('PaceShift', style: theme.textTheme.displaySmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.sm),
           Text(
             'Plans that bend, not break.',
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: Space.xl),
           const FeatureRow(
             icon: Icons.flag_rounded,
             title: 'Your race date never moves',
@@ -381,7 +381,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onPressed: () => setState(() => _step = 1),
             child: const Text('Get started'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: Space.sm),
           Text(
             'Takes about a minute',
             style: theme.textTheme.bodySmall
@@ -583,7 +583,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           value: _hasGoalTime,
           onChanged: (v) => setState(() => _hasGoalTime = v),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.md),
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 250),
           crossFadeState: _hasGoalTime
@@ -600,7 +600,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   onChanged: (v) => setState(() => _goalHours = v),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: Space.md),
               Expanded(
                 child: _GoalStepper(
                   label: 'Minutes',
@@ -710,7 +710,7 @@ class _OptionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(Space.lg),
         decoration: BoxDecoration(
           color: selected
               ? scheme.primary.withValues(alpha: 0.10)
@@ -730,16 +730,18 @@ class _OptionCard extends StatelessWidget {
                 color: scheme.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(Icons.directions_run_rounded,
-                  color: scheme.primary, size: 26),
+              // Was hardcoded to `directions_run`, so the `icon` parameter was
+              // accepted and silently ignored — every option card showed the
+              // same glyph regardless of what it represented.
+              child: Icon(icon, color: scheme.primary, size: 26),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: Space.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: Space.xs),
                   Text(subtitle,
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: scheme.onSurfaceVariant)),
@@ -802,7 +804,7 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 20, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 14),
+          const SizedBox(width: Space.md),
           Text(
             label,
             style: theme.textTheme.bodyMedium

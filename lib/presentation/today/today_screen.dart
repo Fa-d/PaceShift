@@ -95,7 +95,7 @@ class TodayScreen extends ConsumerWidget {
                   // already syncs and Settings → Data holds the full screen.
                   // Three doors to one room is not three features.
                   IconButton.filledTonal(
-                    onPressed: () => _openCoach(context, ref),
+                    onPressed: () => _openCoach(context),
                     icon: const Icon(Icons.psychology_rounded),
                     tooltip: 'Ask your coach',
                   ),
@@ -130,10 +130,10 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openCoach(BuildContext context, WidgetRef ref) async {
-    if (!await ensurePro(context, ref)) return;
-    if (context.mounted) context.push('/coach');
-  }
+  /// No `ensurePro` here on purpose: `/coach` explains what coaching is and
+  /// offers the upgrade itself. Throwing a paywall at someone who tapped a
+  /// brain icon tells them nothing about what they'd be buying.
+  void _openCoach(BuildContext context) => context.push('/coach');
 }
 
 /// Where you are in the plan, and how long is left.
@@ -156,19 +156,28 @@ class _PlanSpine extends ConsumerWidget {
     final week = (daysBetween(plan.startDate, t) ~/ 7) + 1;
     final daysLeft = daysBetween(t, plan.raceDate);
 
+    // One flexible line: a fixed Row overflows on a narrow screen or at a
+    // large text scale, and this is the first thing on the dashboard.
     return Row(
       children: [
         Icon(Icons.flag_rounded, size: 16, color: scheme.primary),
         const SizedBox(width: Space.sm),
-        Text('Week $week of ${plan.totalWeeks}',
-            style: theme.textTheme.labelMedium),
-        Text('  ·  ', style: theme.textTheme.labelMedium
-            ?.copyWith(color: scheme.outlineVariant)),
-        Text(
-          daysLeft <= 0
-              ? 'Race day'
-              : '$daysLeft day${daysLeft == 1 ? '' : 's'} to race day',
-          style: theme.textTheme.labelMedium?.copyWith(color: scheme.primary),
+        Expanded(
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(text: 'Week $week of ${plan.totalWeeks}'),
+              TextSpan(
+                  text: '  ·  ',
+                  style: TextStyle(color: scheme.outlineVariant)),
+              TextSpan(
+                text: daysLeft <= 0
+                    ? 'Race day'
+                    : '$daysLeft day${daysLeft == 1 ? '' : 's'} to race day',
+                style: TextStyle(color: scheme.primary),
+              ),
+            ]),
+            style: theme.textTheme.labelMedium,
+          ),
         ),
       ],
     );
@@ -711,13 +720,18 @@ class _Glances extends ConsumerWidget {
     final plan = ref.watch(activePlanProvider).value;
     if (plan == null) return const SizedBox.shrink();
     final t = ref.watch(todayProvider);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(flex: 3, child: _WeekGlance(today: t)),
-        const SizedBox(width: Space.md),
-        const Expanded(flex: 2, child: _ReadinessGlance()),
-      ],
+    // `IntrinsicHeight`, not `CrossAxisAlignment.stretch`: the two glances
+    // should match heights, but a stretching Row inside a vertical ListView
+    // has no height to stretch *to* and demands an infinite one.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 3, child: _WeekGlance(today: t)),
+          const SizedBox(width: Space.md),
+          const Expanded(flex: 2, child: _ReadinessGlance()),
+        ],
+      ),
     );
   }
 }
@@ -745,7 +759,11 @@ class _ReadinessGlance extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text('Readiness', style: theme.textTheme.titleSmall),
+              Flexible(
+                child: Text('Readiness',
+                    style: theme.textTheme.titleSmall,
+                    overflow: TextOverflow.ellipsis),
+              ),
               const SizedBox(width: Space.xs),
               Icon(Icons.info_outline_rounded,
                   size: 14, color: scheme.onSurfaceVariant),
@@ -864,18 +882,26 @@ class _WeekGlance extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Both halves flex: this sits in a 3/5-width column, so a long
+          // total ("18 / 42 km") overflows a rigid Row on a narrow phone.
           Row(
             children: [
-              Text('This week', style: theme.textTheme.titleSmall),
-              const Spacer(),
-              CountUpText(
-                value: units.toDisplay(doneKm),
-                // The unit label came from a hardcoded ' km' here, so this
-                // number stayed metric no matter what the athlete chose.
-                format: (n) => '${n.round()} / '
-                    '${units.distanceValue(plannedKm)} ${units.distanceLabel}',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(color: scheme.primary),
+              Flexible(
+                child: Text('This week',
+                    style: theme.textTheme.titleSmall,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: Space.sm),
+              Flexible(
+                child: CountUpText(
+                  value: units.toDisplay(doneKm),
+                  // The unit label came from a hardcoded ' km' here, so this
+                  // number stayed metric no matter what the athlete chose.
+                  format: (n) => '${n.round()} / '
+                      '${units.distanceValue(plannedKm)} ${units.distanceLabel}',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(color: scheme.primary),
+                ),
               ),
             ],
           ),
@@ -931,8 +957,12 @@ class _CoachBriefingState extends ConsumerState<_CoachBriefing> {
               Icon(Icons.auto_awesome_rounded,
                   color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: Space.sm),
-              Text('Coach’s briefing', style: theme.textTheme.titleMedium),
-              const Spacer(),
+              Expanded(
+                child: Text('Coach’s briefing',
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: Space.sm),
               // Say it's Pro *before* the tap, not with a paywall afterwards.
               if (!ref.watch(proStatusProvider)) const ProBadge(),
             ],

@@ -29,14 +29,22 @@ class CountUpText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!AppMotion.on(context)) {
-      return Text(format(value), style: style, textAlign: textAlign);
+      return Text(format(value),
+          style: style,
+          textAlign: textAlign,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis);
     }
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: value.toDouble()),
       duration: duration ?? const Duration(milliseconds: 700),
       curve: curve,
       builder: (context, v, _) =>
-          Text(format(v), style: style, textAlign: textAlign),
+          Text(format(v),
+              style: style,
+              textAlign: textAlign,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
     );
   }
 }

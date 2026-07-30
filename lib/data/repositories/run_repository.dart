@@ -93,10 +93,21 @@ class RunRepository {
   /// prediction: it looks done and counts for nothing. [logManualCompletion]
   /// falls back to the planned targets, which is exactly what "did it as
   /// planned" means.
+  /// Duration is derived from the target pace when the plan knows one, and left
+  /// unset otherwise — **never** invented. A fabricated finish time would feed
+  /// straight into the VDOT fitness estimate and the race prediction, so an
+  /// unknown duration is recorded as unknown; `isValidEffort` already excludes
+  /// those from the estimate rather than skewing it.
   Future<void> logAsPlanned(int runId) async {
     final row = await _runs.getPlannedRun(runId);
     if (row == null) return;
-    await logManualCompletion(row.toDomain());
+    final run = row.toDomain();
+    final km = run.targetDistanceKm;
+    final pace = run.targetPaceSecPerKm;
+    final derived = (km != null && pace != null && km > 0 && pace > 0)
+        ? (km * pace).round()
+        : null;
+    await logManualCompletion(run, durationSec: derived);
   }
 
   /// Sets a planned run's lifecycle status without recording an actual.

@@ -87,87 +87,110 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
     final needsInstall = available == false && sync.canInstallProvider;
 
     return Scaffold(
+      appBar: AppBar(),
+      // The pitch scrolls; the actions stay pinned to the bottom.
+      //
+      // This used to be one fixed column budgeting the whole viewport between
+      // two `Spacer`s, which overflowed on any screen shorter than the design
+      // or any user with larger text — and a plain scroll view would have been
+      // no better, because it pushes the very button the screen exists for
+      // below the fold.
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              Space.xl, Space.xl, Space.xl, Space.xl),
-          child: Column(
-            children: <Widget>[
-              const Spacer(flex: 2),
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: scheme.secondary,
-                  borderRadius: AppRadius.lgAll,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    Space.xl, Space.sm, Space.xl, Space.lg),
+                child: Column(
+                  children: <Widget>[
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: scheme.secondary,
+                        borderRadius: AppRadius.lgAll,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.watch_rounded,
+                          size: 52, color: scheme.onSecondary),
+                    ),
+                    const SizedBox(height: Space.xl),
+                    Text('Let your runs log themselves',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.headlineMedium),
+                    const SizedBox(height: Space.sm),
+                    Text(
+                      'Connect once and your plan keeps itself up to date.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: Space.xl),
+                    const FeatureRow(
+                      icon: Icons.bolt_rounded,
+                      title: 'Runs arrive on their own',
+                      description: 'Your watch already records them. Connect '
+                          'once and they land here.',
+                    ),
+                    const FeatureRow(
+                      icon: Icons.autorenew_rounded,
+                      title: 'Your plan adapts to reality',
+                      description: 'PaceShift sees what you actually did, '
+                          'without you telling it anything.',
+                    ),
+                    const FeatureRow(
+                      icon: Icons.lock_rounded,
+                      title: 'Read-only, stays on your phone',
+                      description: 'You can revoke access at any time.',
+                    ),
+                  ]
+                      .animate(interval: 70.ms)
+                      .fadeIn(duration: 360.ms, curve: Curves.easeOut)
+                      .slideY(
+                          begin: 0.14, end: 0, curve: Curves.easeOutCubic),
                 ),
-                alignment: Alignment.center,
-                child: Icon(Icons.watch_rounded,
-                    size: 52, color: scheme.onSecondary),
               ),
-              const SizedBox(height: Space.xl),
-              Text('Let your runs log themselves',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.displaySmall),
-              const SizedBox(height: Space.sm),
-              Text(
-                'Connect once and your plan keeps itself up to date.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Space.xl, 0, Space.xl, Space.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (needsInstall) ...[
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _install,
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text('Install Health Connect'),
+                    ),
+                    const SizedBox(height: Space.sm),
+                    Text(
+                      'Health Connect isn’t set up on this device yet.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ] else
+                    FilledButton(
+                      onPressed: _busy ? null : _connect,
+                      child: _busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text('Connect to ${sync.providerName}'),
+                    ),
+                  const SizedBox(height: Space.sm),
+                  TextButton(
+                    onPressed: _busy ? null : _dismiss,
+                    child: const Text('Not now — I’ll log runs myself'),
+                  ),
+                ],
               ),
-              const SizedBox(height: Space.xl),
-              const FeatureRow(
-                icon: Icons.bolt_rounded,
-                title: 'Runs arrive on their own',
-                description: 'Your watch already records them. Connect once '
-                    'and they land here.',
-              ),
-              const FeatureRow(
-                icon: Icons.autorenew_rounded,
-                title: 'Your plan adapts to reality',
-                description: 'PaceShift sees what you actually did, without '
-                    'you telling it anything.',
-              ),
-              const FeatureRow(
-                icon: Icons.lock_rounded,
-                title: 'Read-only, stays on your phone',
-                description: 'You can revoke access at any time.',
-              ),
-              const Spacer(flex: 3),
-              if (needsInstall) ...[
-                FilledButton.icon(
-                  onPressed: _busy ? null : _install,
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text('Install Health Connect'),
-                ),
-                const SizedBox(height: Space.sm),
-                Text(
-                  'Health Connect isn’t set up on this device yet.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ] else
-                FilledButton(
-                  onPressed: _busy ? null : _connect,
-                  child: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text('Connect to ${sync.providerName}'),
-                ),
-              const SizedBox(height: Space.sm),
-              TextButton(
-                onPressed: _busy ? null : _dismiss,
-                child: const Text('Not now — I’ll log runs myself'),
-              ),
-            ]
-                .animate(interval: 70.ms)
-                .fadeIn(duration: 360.ms, curve: Curves.easeOut)
-                .slideY(begin: 0.14, end: 0, curve: Curves.easeOutCubic),
-          ),
+            ),
+          ],
         ),
       ),
     );

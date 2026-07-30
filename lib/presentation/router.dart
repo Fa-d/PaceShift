@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../core/motion.dart';
 import '../data/health/health_service.dart';
 import '../domain/models/app_settings.dart';
+import 'auth/sign_in_screen.dart';
 import 'genui/ask_coach_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'plan/plan_screen.dart';
 import 'providers/providers.dart';
+import 'providers/subscription_providers.dart';
 import 'run_detail/run_detail_screen.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_settings_screen.dart';
@@ -30,6 +32,8 @@ String? resolveRedirect({
   required String location,
   required bool planLoading,
   required bool hasPlan,
+  // Kept in the signature so the tests can prove neither of these changes
+  // routing any more — see the note about the connect gate below.
   required AppSettings? settings,
   required bool supportsHealth,
 }) {
@@ -53,9 +57,6 @@ String? resolveRedirect({
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(activePlanProvider, (prev, next) => refresh.value++);
-  // The connect gate below keys off settings, so the redirect has to be
-  // re-evaluated when they change — otherwise dismissing the screen wouldn't
-  // release the gate.
   ref.listen(settingsProvider, (prev, next) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
@@ -106,6 +107,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/coach',
         pageBuilder: (context, state) =>
             sharedAxisPage(key: state.pageKey, child: const AskCoachScreen()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/paywall',
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const PaywallHost()),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/sign-in',
+        pageBuilder: (context, state) =>
+            sharedAxisPage(key: state.pageKey, child: const SignInScreen()),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

@@ -18,6 +18,9 @@ import '../widgets/count_up_text.dart';
 import '../widgets/pressable.dart';
 import '../widgets/run_card.dart';
 
+/// Gap between calendar day cells in the 7-wide month grid.
+const double _cellGutter = 2;
+
 enum _PlanView { week, month }
 
 class PlanScreen extends ConsumerStatefulWidget {
@@ -298,7 +301,9 @@ class _MonthDayCell extends ConsumerWidget {
           : null,
       borderRadius: AppRadius.smAll,
       child: Container(
-        margin: const EdgeInsets.all(2),
+        // Hairline gutter between grid cells — mark geometry, not layout
+        // rhythm, so deliberately not a Space token.
+        margin: const EdgeInsets.all(_cellGutter),
         decoration: BoxDecoration(
           color: isToday ? scheme.primaryContainer : null,
           borderRadius: AppRadius.smAll,

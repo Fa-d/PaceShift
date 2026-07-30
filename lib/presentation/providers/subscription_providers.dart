@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/billing/subscription_service.dart';
 import '../paywall/paywall_screen.dart';
@@ -13,21 +14,26 @@ final subscriptionServiceProvider = Provider<SubscriptionService>(
   (ref) => const UnconfiguredSubscriptionService(),
 );
 
-/// Opens the Pro paywall, wiring the RevenueCat purchase/restore handlers.
-Future<void> showPaywall(BuildContext context) {
-  return Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => const _PaywallHost()),
-  );
+/// Opens the Pro paywall.
+///
+/// Goes through `go_router` like everything else. It used to be pushed with a
+/// raw `MaterialPageRoute`, which meant the paywall sat outside the router
+/// entirely: not deep-linkable, not subject to the redirect gates, and
+/// invisible to anything reasoning about the current location.
+Future<void> showPaywall(BuildContext context) async {
+  await context.push<void>('/paywall');
 }
 
-class _PaywallHost extends ConsumerStatefulWidget {
-  const _PaywallHost();
+/// Hosts [PaywallScreen] and wires the billing handlers. Public so the router
+/// can build it.
+class PaywallHost extends ConsumerStatefulWidget {
+  const PaywallHost({super.key});
 
   @override
-  ConsumerState<_PaywallHost> createState() => _PaywallHostState();
+  ConsumerState<PaywallHost> createState() => _PaywallHostState();
 }
 
-class _PaywallHostState extends ConsumerState<_PaywallHost> {
+class _PaywallHostState extends ConsumerState<PaywallHost> {
   bool _busy = false;
   String? _price;
 
@@ -70,7 +76,7 @@ class _PaywallHostState extends ConsumerState<_PaywallHost> {
     if (!mounted) return;
     setState(() => _busy = false);
     _snack(_messageFor(result));
-    if (result == PurchaseResult.success) Navigator.of(context).pop();
+    if (result == PurchaseResult.success) context.pop();
   }
 
   Future<void> _restore(BuildContext _, WidgetRef ref) async {
@@ -82,7 +88,7 @@ class _PaywallHostState extends ConsumerState<_PaywallHost> {
     if (!mounted) return;
     setState(() => _busy = false);
     _snack(_messageFor(result));
-    if (result == PurchaseResult.success) Navigator.of(context).pop();
+    if (result == PurchaseResult.success) context.pop();
   }
 
   @override
